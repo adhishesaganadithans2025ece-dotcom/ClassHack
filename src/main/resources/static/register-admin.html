@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Registration — ClassHack</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div class="auth-wrapper">
+    <div class="auth-card" style="max-width: 600px;">
+        <div class="auth-header">
+            <div class="brand-badge">
+                <i class="bi bi-shield-check"></i> Faculty &amp; Coordinator Registration
+            </div>
+            <h1>CLASSHACK</h1>
+            <p>Register as an Administrator for your Class or Department</p>
+        </div>
+
+        <div class="auth-body">
+            <div class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-3">
+                <i class="bi bi-info-circle-fill fs-5"></i>
+                <div>
+                    <strong>Shared Class Management:</strong> Multiple administrators can register for the same department and section (e.g. Innovation Coordinator, Class In-charge, Faculty).
+                </div>
+            </div>
+
+            <form id="adminRegForm" onsubmit="handleAdminRegister(event)">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-12">
+                        <label for="fullName" class="form-label fw-semibold">Full Name <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white"><i class="bi bi-person"></i></span>
+                            <input type="text" class="form-control" id="fullName" placeholder="e.g. Dr. Kumar or Ms. Priya" required>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="email" class="form-label fw-semibold">Official Email <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white"><i class="bi bi-envelope"></i></span>
+                            <input type="email" class="form-control" id="email" placeholder="faculty@college.edu" required>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="phone" class="form-label fw-semibold">Phone Number <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white"><i class="bi bi-telephone"></i></span>
+                            <input type="tel" class="form-control" id="phone" placeholder="9876543210" required>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="department" class="form-label fw-semibold">Department <span class="text-danger">*</span></label>
+                        <select class="form-select" id="department" required>
+                            <option value="" disabled selected>Select Department</option>
+                            <option value="ECE">Electronics &amp; Communication (ECE)</option>
+                            <option value="CSE">Computer Science &amp; Eng (CSE)</option>
+                            <option value="IT">Information Technology (IT)</option>
+                            <option value="EEE">Electrical &amp; Electronics (EEE)</option>
+                            <option value="MECH">Mechanical Engineering (MECH)</option>
+                            <option value="AIDS">AI &amp; Data Science (AIDS)</option>
+                            <option value="CIVIL">Civil Engineering (CIVIL)</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="section" class="form-label fw-semibold">Section <span class="text-danger">*</span></label>
+                        <select class="form-select" id="section" required>
+                            <option value="" disabled selected>Select Section</option>
+                            <option value="A">Section A</option>
+                            <option value="B">Section B</option>
+                            <option value="C">Section C</option>
+                            <option value="D">Section D</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-12">
+                        <label for="position" class="form-label fw-semibold">Administrative Position <span class="text-danger">*</span></label>
+                        <select class="form-select" id="position" required>
+                            <option value="" disabled selected>Select Position</option>
+                            <option value="Innovation Coordinator">Innovation Coordinator</option>
+                            <option value="Faculty">Faculty</option>
+                            <option value="Class Coordinator">Class Coordinator</option>
+                            <option value="Department Coordinator">Department Coordinator</option>
+                            <option value="Hackathon Coordinator">Hackathon Coordinator</option>
+                            <option value="Head of Department">Head of Department (HOD)</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-12">
+                        <label for="password" class="form-label fw-semibold">Secure Password <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white"><i class="bi bi-lock"></i></span>
+                            <input type="password" class="form-control" id="password" minlength="6" placeholder="At least 6 characters" required>
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('password', this)" title="Toggle password visibility">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                        <div class="form-text">Passwords are securely hashed using BCrypt.</div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 py-2 mb-3" id="submitBtn">
+                    <span id="btnSpinner" class="spinner-border spinner-border-sm me-2 d-none"></span>
+                    <span id="btnText"><i class="bi bi-check-circle-fill me-1"></i> Complete Registration</span>
+                </button>
+
+                <div class="text-center">
+                    <a href="/login.html" class="text-decoration-none small text-muted">
+                        <i class="bi bi-arrow-left me-1"></i> Already registered? Return to Login
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Administrator Authorization Modal -->
+<div class="modal fade" id="authorizerModal" tabindex="-1" aria-labelledby="authorizerModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-light border-bottom">
+                <h5 class="modal-title d-flex align-items-center gap-2" id="authorizerModalLabel">
+                    <i class="bi bi-shield-lock-fill text-primary"></i> Administrator Verification
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="alert alert-warning py-2 px-3 small d-flex align-items-start gap-2 mb-3">
+                    <i class="bi bi-exclamation-triangle-fill fs-5 text-warning flex-shrink-0 mt-1"></i>
+                    <div>
+                        <strong>Authorization Required:</strong> Only an existing administrator (such as Super Admin or a registered Admin) can authorize creating another administrator. Please enter your administrator email and password.
+                    </div>
+                </div>
+
+                <div id="authAlertBox" class="alert alert-danger py-2 small d-none mb-3"></div>
+
+                <form id="authorizerForm" onsubmit="confirmAndRegisterAdmin(event)">
+                    <div class="mb-3">
+                        <label for="authorizerEmail" class="form-label fw-semibold">Authorizing Admin Email <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white"><i class="bi bi-person-check"></i></span>
+                            <input type="email" class="form-control" id="authorizerEmail" placeholder="e.g. admin2244@gmail.com" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="authorizerPassword" class="form-label fw-semibold">Authorizing Admin Password <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white"><i class="bi bi-key"></i></span>
+                            <input type="password" class="form-control" id="authorizerPassword" placeholder="Enter admin password" required>
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('authorizerPassword', this)" title="Toggle password visibility">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center pt-2">
+                        <button type="button" class="btn btn-light border px-3" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary px-4" id="confirmAuthBtn">
+                            <span id="authBtnSpinner" class="spinner-border spinner-border-sm me-2 d-none"></span>
+                            <span id="authBtnText"><i class="bi bi-shield-check me-1"></i> Verify &amp; Register</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/app.js"></script>
+<script>
+    function togglePasswordVisibility(inputId, btn) {
+        const input = document.getElementById(inputId);
+        const icon = btn.querySelector('i');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('bi-eye');
+            icon.classList.add('bi-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.remove('bi-eye-slash');
+            icon.classList.add('bi-eye');
+        }
+    }
+
+    let authorizerModalInstance = null;
+
+    function handleAdminRegister(e) {
+        e.preventDefault();
+        const form = document.getElementById('adminRegForm');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        // Reset auth modal alert
+        const alertBox = document.getElementById('authAlertBox');
+        alertBox.classList.add('d-none');
+        alertBox.innerText = '';
+
+        if (!authorizerModalInstance) {
+            authorizerModalInstance = new bootstrap.Modal(document.getElementById('authorizerModal'));
+        }
+        authorizerModalInstance.show();
+        setTimeout(() => {
+            const emailInput = document.getElementById('authorizerEmail');
+            if (emailInput) emailInput.focus();
+        }, 400);
+    }
+
+    async function confirmAndRegisterAdmin(e) {
+        e.preventDefault();
+        const authorizerEmail = document.getElementById('authorizerEmail').value.trim();
+        const authorizerPassword = document.getElementById('authorizerPassword').value;
+
+        const authAlertBox = document.getElementById('authAlertBox');
+        authAlertBox.classList.add('d-none');
+
+        if (!authorizerEmail || !authorizerPassword) {
+            authAlertBox.innerText = "Please enter both administrator email and password.";
+            authAlertBox.classList.remove('d-none');
+            return;
+        }
+
+        const authBtnSpinner = document.getElementById('authBtnSpinner');
+        const authBtnText = document.getElementById('authBtnText');
+        const confirmAuthBtn = document.getElementById('confirmAuthBtn');
+
+        authBtnSpinner.classList.remove('d-none');
+        authBtnText.innerText = "Verifying...";
+        confirmAuthBtn.disabled = true;
+
+        const fullName = document.getElementById('fullName').value.trim();
+        const email = document.getElementById('email').value.trim();
+        const phone = document.getElementById('phone').value.trim();
+        const department = document.getElementById('department').value;
+        const section = document.getElementById('section').value;
+        const position = document.getElementById('position').value;
+        const password = document.getElementById('password').value;
+
+        try {
+            const res = await ClassHack.api('/api/auth/register-admin', {
+                method: 'POST',
+                body: JSON.stringify({
+                    fullName,
+                    email,
+                    phone,
+                    department,
+                    section,
+                    position,
+                    password,
+                    authorizerEmail,
+                    authorizerPassword
+                })
+            });
+
+            if (authorizerModalInstance) {
+                authorizerModalInstance.hide();
+            }
+
+            ClassHack.toast(res.message || "Administrator account registered successfully! Redirecting to login...", 'success');
+            setTimeout(() => {
+                window.location.href = '/login.html';
+            }, 1000);
+        } catch (err) {
+            // Person is not admin or credentials invalid: restrict them
+            authAlertBox.innerText = err.message || "Authorization failed: Only an administrator can register another admin.";
+            authAlertBox.classList.remove('d-none');
+            ClassHack.toast(err.message, 'danger');
+        } finally {
+            authBtnSpinner.classList.add('d-none');
+            authBtnText.innerHTML = '<i class="bi bi-shield-check me-1"></i> Verify &amp; Register';
+            confirmAuthBtn.disabled = false;
+        }
+    }
+</script>
+</body>
+</html>

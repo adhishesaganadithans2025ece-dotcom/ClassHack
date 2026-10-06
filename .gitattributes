@@ -1,0 +1,23 @@
+# Normalize text files
+* text=auto
+
+# Maven wrapper
+/mvnw text eol=lf
+*.cmd text eol=crlf
+
+# Java
+*.java text
+
+# Spring Boot / configuration
+*.properties text
+*.yml text
+*.yaml text
+*.xml text
+
+# Frontend
+*.html text
+*.css text
+*.js text
+
+# Documentation
+*.md text
