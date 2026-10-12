@@ -75,16 +75,16 @@
                 </div>
             </div>
 
-            <div class="d-flex align-items-center gap-3">
+            <div class="d-flex align-items-center gap-2">
                 <!-- In-app Notifications Dropdown / Button -->
                 <div class="dropdown">
-                    <button class="btn btn-light position-relative border" type="button" id="notifDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                    <button class="btn btn-light position-relative border btn-sm" type="button" id="notifDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false" title="Notifications">
                         <i class="bi bi-bell-fill text-muted"></i>
                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" id="notifBadgeCount">
                             0
                         </span>
                     </button>
-                    <div class="dropdown-menu dropdown-menu-end shadow-lg p-3" style="width: 340px; max-height: 420px; overflow-y: auto;" aria-labelledby="notifDropdownBtn">
+                    <div class="dropdown-menu dropdown-menu-end shadow-lg p-3" style="width: 320px; max-width: calc(100vw - 2rem); max-height: 420px; overflow-y: auto;" aria-labelledby="notifDropdownBtn">
                         <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
                             <h6 class="mb-0 fw-bold"><i class="bi bi-bell me-1"></i> Notifications</h6>
                             <button class="btn btn-link btn-sm text-decoration-none p-0 small" onclick="markAllNotificationsAsRead()">Mark all as read</button>
@@ -95,8 +95,8 @@
                     </div>
                 </div>
 
-                <button class="btn btn-sm btn-outline-primary d-none d-sm-inline-flex align-items-center gap-1" onclick="switchStudentView('my-teams')">
-                    <i class="bi bi-diagram-3"></i> My Teams
+                <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" onclick="switchStudentView('my-teams')" title="My Teams">
+                    <i class="bi bi-diagram-3"></i> <span class="d-none d-sm-inline">My </span>Teams
                 </button>
             </div>
         </header>
@@ -150,27 +150,27 @@
                         </div>
                     </div>
 
-                    <!-- Portfolio Summary Cards -->
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-3">
+                    <!-- Portfolio Summary Cards (2x2 on mobile, 4 columns on tablet/desktop) -->
+                    <div class="row g-2 g-sm-3 mb-4">
+                        <div class="col-6 col-md-3">
                             <div class="p-3 bg-light rounded-3 text-center border">
                                 <div class="fs-4 fw-bold text-primary" id="historyTotalCount">0</div>
                                 <div class="text-muted small">Total Participations</div>
                             </div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-6 col-md-3">
                             <div class="p-3 bg-light rounded-3 text-center border">
                                 <div class="fs-4 fw-bold text-success" id="historyWins">0</div>
                                 <div class="text-muted small">🏆 Hackathons Won</div>
                             </div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-6 col-md-3">
                             <div class="p-3 bg-light rounded-3 text-center border">
                                 <div class="fs-4 fw-bold text-purple" id="historyFinals">0</div>
                                 <div class="text-muted small">🥈 Finalist Rounds</div>
                             </div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-6 col-md-3">
                             <div class="p-3 bg-light rounded-3 text-center border">
                                 <div class="fs-4 fw-bold text-warning" id="historyShortlisted">0</div>
                                 <div class="text-muted small">⭐ Shortlisted</div>
@@ -446,14 +446,22 @@
         const grid = document.getElementById('hackathonsGrid');
         try {
             const hackathons = await ClassHack.api('/api/hackathons');
-            cachedHackathons = hackathons;
+            const todayStr = new Date().toISOString().split('T')[0];
 
-            if (!hackathons || hackathons.length === 0) {
-                grid.innerHTML = '<div class="text-center py-5 text-muted col-12">No hackathons published at this time.</div>';
+            // Filter only ongoing hackathons: end date completed hackathons are not displayed
+            const ongoingHackathons = (hackathons || []).filter(h => {
+                if (h.status === 'COMPLETED' || h.status === 'REGISTRATION_CLOSED') return false;
+                if (h.registrationEnd && h.registrationEnd < todayStr) return false;
+                return true;
+            });
+            cachedHackathons = ongoingHackathons;
+
+            if (!ongoingHackathons || ongoingHackathons.length === 0) {
+                grid.innerHTML = '<div class="text-center py-5 text-muted col-12"><i class="bi bi-calendar-x fs-1 d-block mb-2 text-secondary"></i>No ongoing hackathons available at this time.<br><small class="text-muted">Completed hackathons are archived and accessible in your Participation History.</small></div>';
                 return;
             }
 
-            grid.innerHTML = hackathons.map(h => {
+            grid.innerHTML = ongoingHackathons.map(h => {
                 const isOpen = h.status === 'REGISTRATION_OPEN';
                 const isRegistered = h.alreadyRegistered;
 
@@ -708,7 +716,7 @@
                             </span>
                         </div>
                     </div>
-                    <div class="p-3 bg-light border-bottom d-flex gap-4 small text-muted">
+                    <div class="p-3 bg-light border-bottom d-flex flex-wrap gap-3 small text-muted">
                         <div><strong>Leader:</strong> ${ClassHack.escapeHtml(team.teamLeaderName)}</div>
                         <div><strong>Total Members:</strong> ${team.memberCount} / ${team.maximumTeamSize}</div>
                         <div><strong>Mode:</strong> ${team.hackathonMode} ${team.hackathonVenue ? `(${ClassHack.escapeHtml(team.hackathonVenue)})` : ''}</div>

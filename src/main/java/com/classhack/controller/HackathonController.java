@@ -32,15 +32,17 @@ public class HackathonController {
     @GetMapping
     public ResponseEntity<List<HackathonResponse>> getAllHackathons() {
         CustomUserDetails user = authService.getCurrentUser();
-        Long studentId = (user != null && user.getRole() == Role.ROLE_STUDENT) ? user.getId() : null;
-        return ResponseEntity.ok(hackathonService.getAllHackathons(studentId));
+        boolean isStudent = (user != null && user.getRole() == Role.ROLE_STUDENT);
+        Long studentId = isStudent ? user.getId() : null;
+        return ResponseEntity.ok(hackathonService.getAllHackathons(studentId, isStudent));
     }
 
     @GetMapping("/search")
     public ResponseEntity<List<HackathonResponse>> searchHackathons(@RequestParam(required = false, defaultValue = "") String keyword) {
         CustomUserDetails user = authService.getCurrentUser();
-        Long studentId = (user != null && user.getRole() == Role.ROLE_STUDENT) ? user.getId() : null;
-        return ResponseEntity.ok(hackathonService.searchHackathons(keyword, studentId));
+        boolean isStudent = (user != null && user.getRole() == Role.ROLE_STUDENT);
+        Long studentId = isStudent ? user.getId() : null;
+        return ResponseEntity.ok(hackathonService.searchHackathons(keyword, studentId, isStudent));
     }
 
     @GetMapping("/{id}")

@@ -6,6 +6,7 @@ import com.classhack.entity.AuditLog;
 import com.classhack.entity.Hackathon;
 import com.classhack.entity.Team;
 import com.classhack.entity.enums.HackathonMode;
+import com.classhack.entity.enums.HackathonStatus;
 import com.classhack.exception.BadRequestException;
 import com.classhack.exception.DuplicateHackathonException;
 import com.classhack.exception.ResourceNotFoundException;
@@ -18,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -121,7 +123,20 @@ public class HackathonService {
     }
 
     public List<HackathonResponse> getAllHackathons(Long currentStudentId) {
+        return getAllHackathons(currentStudentId, currentStudentId != null);
+    }
+
+    public List<HackathonResponse> getAllHackathons(Long currentStudentId, boolean isStudent) {
+        LocalDate today = LocalDate.now();
         return hackathonRepository.findByDeletedFalseOrderByRegistrationStartDesc().stream()
+                .filter(h -> {
+                    if (isStudent) {
+                        return h.getRegistrationEnd() != null && !today.isAfter(h.getRegistrationEnd())
+                                && h.getComputedStatus() != HackathonStatus.COMPLETED
+                                && h.getComputedStatus() != HackathonStatus.REGISTRATION_CLOSED;
+                    }
+                    return true;
+                })
                 .map(h -> mapToResponse(h, currentStudentId))
                 .collect(Collectors.toList());
     }
@@ -133,7 +148,20 @@ public class HackathonService {
     }
 
     public List<HackathonResponse> searchHackathons(String keyword, Long currentStudentId) {
+        return searchHackathons(keyword, currentStudentId, currentStudentId != null);
+    }
+
+    public List<HackathonResponse> searchHackathons(String keyword, Long currentStudentId, boolean isStudent) {
+        LocalDate today = LocalDate.now();
         return hackathonRepository.searchHackathons(keyword).stream()
+                .filter(h -> {
+                    if (isStudent) {
+                        return h.getRegistrationEnd() != null && !today.isAfter(h.getRegistrationEnd())
+                                && h.getComputedStatus() != HackathonStatus.COMPLETED
+                                && h.getComputedStatus() != HackathonStatus.REGISTRATION_CLOSED;
+                    }
+                    return true;
+                })
                 .map(h -> mapToResponse(h, currentStudentId))
                 .collect(Collectors.toList());
     }
