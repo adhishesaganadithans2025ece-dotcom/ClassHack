@@ -30,6 +30,9 @@ public interface TeamRepository extends JpaRepository<Team, Long> {
     @Query("SELECT t FROM Team t JOIN t.members m WHERE m.student.id = :studentId AND t.deleted = false ORDER BY t.createdAt DESC")
     List<Team> findTeamsByStudentId(@Param("studentId") Long studentId);
 
-    @Query("SELECT t FROM Team t JOIN t.members m WHERE m.student.id = :studentId AND t.hackathon.id = :hackathonId AND t.deleted = false")
+    @Query("SELECT t FROM Team t WHERE t.hackathon.id = :hackathonId AND t.deleted = false AND (t.teamLeader.id = :studentId OR EXISTS (SELECT m FROM TeamMember m WHERE m.team = t AND m.student.id = :studentId))")
     Optional<Team> findTeamByStudentAndHackathon(@Param("studentId") Long studentId, @Param("hackathonId") Long hackathonId);
+
+    @Query("SELECT COUNT(t) > 0 FROM Team t WHERE t.hackathon.id = :hackathonId AND t.deleted = false AND (t.teamLeader.id = :studentId OR EXISTS (SELECT m FROM TeamMember m WHERE m.team = t AND m.student.id = :studentId))")
+    boolean isStudentInHackathonTeam(@Param("studentId") Long studentId, @Param("hackathonId") Long hackathonId);
 }

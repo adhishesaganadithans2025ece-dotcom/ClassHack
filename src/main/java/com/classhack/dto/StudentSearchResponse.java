@@ -17,4 +17,5 @@ public class StudentSearchResponse {
     private String section;
     private String year;
     private String email;
+    private boolean alreadyInTeam;
 }

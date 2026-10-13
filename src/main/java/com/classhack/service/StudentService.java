@@ -4,8 +4,7 @@ import com.classhack.dto.*;
 import com.classhack.entity.Notification;
 import com.classhack.entity.Student;
 import com.classhack.exception.ResourceNotFoundException;
-import com.classhack.repository.NotificationRepository;
-import com.classhack.repository.StudentRepository;
+import com.classhack.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +17,7 @@ import java.util.stream.Collectors;
 public class StudentService {
 
     private final StudentRepository studentRepository;
+    private final TeamMemberRepository teamMemberRepository;
     private final NotificationRepository notificationRepository;
     private final AdminService adminService;
     private final HackathonService hackathonService;
@@ -30,21 +30,32 @@ public class StudentService {
     }
 
     public List<StudentSearchResponse> searchActiveStudentsForTeam(String query) {
+        return searchActiveStudentsForTeam(query, null);
+    }
+
+    public List<StudentSearchResponse> searchActiveStudentsForTeam(String query, Long hackathonId) {
         String trimmed = query != null ? query.trim() : "";
         List<Student> students = trimmed.isEmpty()
                 ? studentRepository.findByActiveTrueOrderByFullNameAsc()
                 : studentRepository.searchActiveStudentsForTeam(trimmed);
 
         return students.stream()
-                .map(s -> StudentSearchResponse.builder()
-                        .id(s.getId())
-                        .studentId(s.getStudentId())
-                        .fullName(s.getFullName())
-                        .department(s.getDepartment())
-                        .section(s.getSection())
-                        .year(s.getYear())
-                        .email(s.getEmail())
-                        .build())
+                .map(s -> {
+                    boolean alreadyInTeam = false;
+                    if (hackathonId != null) {
+                        alreadyInTeam = teamMemberRepository.isStudentInHackathonTeam(s.getId(), hackathonId);
+                    }
+                    return StudentSearchResponse.builder()
+                            .id(s.getId())
+                            .studentId(s.getStudentId())
+                            .fullName(s.getFullName())
+                            .department(s.getDepartment())
+                            .section(s.getSection())
+                            .year(s.getYear())
+                            .email(s.getEmail())
+                            .alreadyInTeam(alreadyInTeam)
+                            .build();
+                })
                 .collect(Collectors.toList());
     }
 

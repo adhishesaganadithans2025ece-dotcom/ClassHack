@@ -334,4 +334,62 @@ class AdminRegistrationAuthTest {
         assertTrue(ex.getMessage().contains("Access Denied: Only the Super Administrator"));
         assertTrue(adminRepository.existsById(victim.getId()), "Victim admin must not be deleted");
     }
+
+    @Test
+    @DisplayName("All six simplified admin roles can be registered successfully")
+    void testAllSixSimplifiedRolesCanBeRegistered() {
+        List<String> roles = List.of(
+                "Innovation Coordinator",
+                "Class Advisor",
+                "Faculty",
+                "Class Coordinator",
+                "Placement Coordinator",
+                "HOD"
+        );
+
+        int count = 1;
+        for (String role : roles) {
+            AdminRegisterRequest req = AdminRegisterRequest.builder()
+                    .fullName("Admin " + role)
+                    .phone("980000000" + count)
+                    .email("admin" + count + "@college.edu")
+                    .password("password123")
+                    .department("ECE")
+                    .section("A")
+                    .position(role)
+                    .authorizerEmail("admin2244@gmail.com")
+                    .authorizerPassword("admin&2244")
+                    .build();
+
+            LoginResponse res = authService.registerAdmin(req);
+            assertNotNull(res);
+            assertTrue(res.isSuccess());
+
+            Admin saved = adminRepository.findByEmailIgnoreCase("admin" + count + "@college.edu").orElseThrow();
+            assertEquals(role, saved.getPosition());
+            assertEquals(Role.ROLE_ADMIN, saved.getRole());
+            count++;
+        }
+    }
+
+    @Test
+    @DisplayName("Invalid admin role is rejected with BadRequestException")
+    void testInvalidAdminRoleIsRejected() {
+        AdminRegisterRequest req = AdminRegisterRequest.builder()
+                .fullName("Invalid Role Admin")
+                .phone("9812345678")
+                .email("invalidrole@college.edu")
+                .password("password123")
+                .department("ECE")
+                .section("A")
+                .position("Department Coordinator") // Not in the 6 simplified roles
+                .authorizerEmail("admin2244@gmail.com")
+                .authorizerPassword("admin&2244")
+                .build();
+
+        BadRequestException ex = assertThrows(BadRequestException.class, () ->
+                authService.registerAdmin(req)
+        );
+        assertTrue(ex.getMessage().contains("Invalid role selected"));
+    }
 }

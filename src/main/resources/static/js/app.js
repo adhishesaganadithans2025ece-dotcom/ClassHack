@@ -222,5 +222,39 @@ const ClassHack = {
         }
 
         return `<span class="badge-status ${className}">${label}</span>`;
+    },
+
+    // Reusable Show/Hide Password Visibility Toggle
+    togglePasswordVisibility(inputId, btn) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        const icon = btn ? btn.querySelector('i') : null;
+        if (input.type === 'password') {
+            input.type = 'text';
+            if (icon) {
+                icon.classList.remove('bi-eye');
+                icon.classList.add('bi-eye-slash');
+            }
+            if (btn) {
+                btn.setAttribute('aria-label', 'Hide password');
+                btn.setAttribute('title', 'Hide password');
+            }
+        } else {
+            input.type = 'password';
+            if (icon) {
+                icon.classList.remove('bi-eye-slash');
+                icon.classList.add('bi-eye');
+            }
+            if (btn) {
+                btn.setAttribute('aria-label', 'Show password');
+                btn.setAttribute('title', 'Show password');
+            }
+        }
     }
 };
+
+// Global helper so onclick="togglePasswordVisibility('id', this)" works seamlessly everywhere
+window.togglePasswordVisibility = function(inputId, btn) {
+    ClassHack.togglePasswordVisibility(inputId, btn);
+};
+

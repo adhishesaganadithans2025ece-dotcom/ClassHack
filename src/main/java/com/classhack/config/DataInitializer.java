@@ -28,6 +28,17 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) {
         initializeSuperAdmin();
+        migrateLegacyAdminRoles();
+    }
+
+    public void migrateLegacyAdminRoles() {
+        for (Admin a : adminRepository.findAll()) {
+            if ("Head of Department".equalsIgnoreCase(a.getPosition()) || "Head of Department (HOD)".equalsIgnoreCase(a.getPosition())) {
+                a.setPosition("HOD");
+                adminRepository.save(a);
+                log.info("Migrated legacy admin role for {}: {} -> HOD", a.getEmail(), a.getPosition());
+            }
+        }
     }
 
     public void initializeSuperAdmin() {

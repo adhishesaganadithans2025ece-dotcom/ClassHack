@@ -545,12 +545,24 @@
                             <h3 class="card-title-custom mb-3"><i class="bi bi-key-fill text-warning"></i> Change Password</h3>
                             <form id="changePasswordForm" onsubmit="handleChangePassword(event)">
                                 <div class="mb-3">
-                                    <label class="form-label fw-semibold">Current Password</label>
-                                    <input type="password" class="form-control" id="currentPassword" required>
+                                    <label for="currentPassword" class="form-label fw-semibold">Current Password</label>
+                                    <div class="input-group flex-nowrap">
+                                        <span class="input-group-text bg-white"><i class="bi bi-key"></i></span>
+                                        <input type="password" class="form-control" id="currentPassword" required>
+                                        <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('currentPassword', this)" aria-label="Show password" title="Show password">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="mb-3">
-                                    <label class="form-label fw-semibold">New Password</label>
-                                    <input type="password" class="form-control" id="newPassword" minlength="6" required>
+                                    <label for="newPassword" class="form-label fw-semibold">New Password</label>
+                                    <div class="input-group flex-nowrap">
+                                        <span class="input-group-text bg-white"><i class="bi bi-lock"></i></span>
+                                        <input type="password" class="form-control" id="newPassword" minlength="6" required>
+                                        <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('newPassword', this)" aria-label="Show password" title="Show password">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </div>
                                 </div>
                                 <button type="submit" class="btn btn-primary">Update Password</button>
                             </form>
@@ -628,8 +640,14 @@
                             <input type="tel" class="form-control" id="newStudentPhone" placeholder="9876543210">
                         </div>
                         <div class="col-md-12">
-                            <label class="form-label fw-semibold">Initial Password <span class="text-danger">*</span></label>
-                            <input type="password" class="form-control" id="newStudentPassword" minlength="6" placeholder="Initial student password (min 6 chars)" required>
+                            <label for="newStudentPassword" class="form-label fw-semibold">Initial Password <span class="text-danger">*</span></label>
+                            <div class="input-group flex-nowrap">
+                                <span class="input-group-text bg-white"><i class="bi bi-lock"></i></span>
+                                <input type="password" class="form-control" id="newStudentPassword" minlength="6" placeholder="Initial student password (min 6 chars)" required>
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('newStudentPassword', this)" aria-label="Show password" title="Show password">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -705,8 +723,14 @@
                             <input type="tel" class="form-control" id="editStudentPhone">
                         </div>
                         <div class="col-md-12">
-                            <label class="form-label fw-semibold">Reset Password (Optional)</label>
-                            <input type="password" class="form-control" id="editStudentNewPassword" placeholder="Leave empty to keep unchanged">
+                            <label for="editStudentNewPassword" class="form-label fw-semibold">Reset Password (Optional)</label>
+                            <div class="input-group flex-nowrap">
+                                <span class="input-group-text bg-white"><i class="bi bi-key"></i></span>
+                                <input type="password" class="form-control" id="editStudentNewPassword" placeholder="Leave empty to keep unchanged">
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('editStudentNewPassword', this)" aria-label="Show password" title="Show password">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -958,7 +982,7 @@
         document.getElementById('profileFullName').innerText = currentAdmin.fullName;
         document.getElementById('profileEmail').innerText = currentAdmin.email;
         document.getElementById('profileDeptSec').innerText = `${currentAdmin.department} - Section ${currentAdmin.section}`;
-        document.getElementById('profilePosition').innerText = currentAdmin.role === 'ROLE_ADMIN' ? 'Class / Department Administrator' : 'Administrator';
+        document.getElementById('profilePosition').innerText = currentAdmin.position || 'Administrator';
 
         // Super Admin detection & privileges
         const isSuper = currentAdmin.isSuperAdmin || (currentAdmin.email && currentAdmin.email.toLowerCase() === 'admin2244@gmail.com');
@@ -966,7 +990,7 @@
             const navAdmins = document.getElementById('nav-item-admins');
             if (navAdmins) navAdmins.classList.remove('d-none');
             document.getElementById('sidebarAdminRole').innerHTML = '<i class="bi bi-star-fill text-warning"></i> Super Admin';
-            document.getElementById('profilePosition').innerHTML = '<span class="badge bg-warning text-dark px-2 py-1"><i class="bi bi-star-fill me-1"></i> Super Administrator</span>';
+            document.getElementById('profilePosition').innerHTML = '<span class="badge bg-warning text-dark px-2 py-1"><i class="bi bi-star-fill me-1"></i> ' + ClassHack.escapeHtml(currentAdmin.position || 'Super Administrator') + '</span>';
         }
 
         // Configure class/scope indicators

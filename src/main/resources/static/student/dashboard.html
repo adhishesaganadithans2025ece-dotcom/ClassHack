@@ -238,12 +238,24 @@
                             <h3 class="card-title-custom mb-3"><i class="bi bi-key-fill text-warning"></i> Change Password</h3>
                             <form id="studentChangePasswordForm" onsubmit="handleStudentChangePassword(event)">
                                 <div class="mb-3">
-                                    <label class="form-label fw-semibold">Current Password</label>
-                                    <input type="password" class="form-control" id="studentCurrentPassword" required>
+                                    <label for="studentCurrentPassword" class="form-label fw-semibold">Current Password</label>
+                                    <div class="input-group flex-nowrap">
+                                        <span class="input-group-text bg-white"><i class="bi bi-key"></i></span>
+                                        <input type="password" class="form-control" id="studentCurrentPassword" required>
+                                        <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('studentCurrentPassword', this)" aria-label="Show password" title="Show password">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="mb-3">
-                                    <label class="form-label fw-semibold">New Password</label>
-                                    <input type="password" class="form-control" id="studentNewPassword" minlength="6" placeholder="At least 6 characters" required>
+                                    <label for="studentNewPassword" class="form-label fw-semibold">New Password</label>
+                                    <div class="input-group flex-nowrap">
+                                        <span class="input-group-text bg-white"><i class="bi bi-lock"></i></span>
+                                        <input type="password" class="form-control" id="studentNewPassword" minlength="6" placeholder="At least 6 characters" required>
+                                        <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('studentNewPassword', this)" aria-label="Show password" title="Show password">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </div>
                                 </div>
                                 <button type="submit" class="btn btn-primary">Update Password</button>
                             </form>
@@ -267,6 +279,7 @@
             <form id="createTeamForm" onsubmit="handleCreateTeam(event)">
                 <input type="hidden" id="modalHackathonId">
                 <div class="modal-body">
+                    <div id="createTeamAlert" class="alert alert-danger py-2 small d-none mb-3"></div>
                     <!-- Hackathon Summary in modal -->
                     <div class="p-3 bg-light rounded-3 mb-3 border">
                         <h6 class="fw-bold mb-1" id="modalHackathonName">--</h6>
@@ -541,8 +554,20 @@
         const hackathon = cachedHackathons.find(h => h.id === hackathonId);
         if (!hackathon) return;
 
+        // Scenario C: If student already leads or belongs to a team in this hackathon, reject duplicate registration
+        if (hackathon.alreadyRegistered) {
+            ClassHack.toast("This student already included in another team", 'warning');
+            return;
+        }
+
         maxTeamLimit = hackathon.maximumTeamSize;
         selectedMembers = []; // reset
+
+        const alertBox = document.getElementById('createTeamAlert');
+        if (alertBox) {
+            alertBox.classList.add('d-none');
+            alertBox.innerText = '';
+        }
 
         document.getElementById('modalHackathonId').value = hackathon.id;
         document.getElementById('modalHackathonName').innerText = hackathon.name;
@@ -568,7 +593,9 @@
 
         searchClassmatesTimeout = setTimeout(async () => {
             try {
-                const students = await ClassHack.api(`/api/student/search-members?query=${encodeURIComponent(query.trim())}`);
+                const hackathonId = document.getElementById('modalHackathonId').value;
+                const searchUrl = `/api/student/search-members?query=${encodeURIComponent(query.trim())}${hackathonId ? `&hackathonId=${hackathonId}` : ''}`;
+                const students = await ClassHack.api(searchUrl);
                 if (!students || students.length === 0) {
                     resultsBox.innerHTML = '<div class="list-group-item text-muted small">No matching students found</div>';
                     resultsBox.classList.remove('d-none');
@@ -585,12 +612,15 @@
                 }
 
                 resultsBox.innerHTML = available.map(s => `
-                    <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" onclick="addMemberToSelection(${s.id}, '${ClassHack.escapeHtml(s.studentId)}', '${ClassHack.escapeHtml(s.fullName)}', '${ClassHack.escapeHtml(s.department)}', '${ClassHack.escapeHtml(s.section)}')">
+                    <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center ${s.alreadyInTeam ? 'list-group-item-light' : ''}" onclick="addMemberToSelection(${s.id}, '${ClassHack.escapeHtml(s.studentId)}', '${ClassHack.escapeHtml(s.fullName)}', '${ClassHack.escapeHtml(s.department)}', '${ClassHack.escapeHtml(s.section)}', ${s.alreadyInTeam ? 'true' : 'false'})">
                         <div>
                             <strong>${ClassHack.escapeHtml(s.fullName)}</strong>
                             <div class="small text-muted">${ClassHack.escapeHtml(s.studentId)} | ${ClassHack.escapeHtml(s.department)}-${ClassHack.escapeHtml(s.section)} (${ClassHack.escapeHtml(s.year)})</div>
                         </div>
-                        <span class="badge bg-primary rounded-pill"><i class="bi bi-plus"></i> Add</span>
+                        ${s.alreadyInTeam ? 
+                            '<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle-fill me-1"></i>In Another Team</span>' : 
+                            '<span class="badge bg-primary rounded-pill"><i class="bi bi-plus"></i> Add</span>'
+                        }
                     </button>
                 `).join('');
                 resultsBox.classList.remove('d-none');
@@ -600,7 +630,13 @@
         }, 300);
     }
 
-    function addMemberToSelection(id, studentId, fullName, department, section) {
+    function addMemberToSelection(id, studentId, fullName, department, section, alreadyInTeam = false) {
+        // Scenario A & B: If student already in another team for this hackathon (as member or leader), display exact warning
+        if (alreadyInTeam) {
+            ClassHack.toast("This student already included in another team", 'warning');
+            return;
+        }
+
         if (1 + selectedMembers.length >= maxTeamLimit) {
             ClassHack.toast(`Cannot exceed maximum team size of ${maxTeamLimit} members!`, 'warning');
             return;
@@ -676,6 +712,11 @@
             await loadAvailableHackathons();
             switchStudentView('my-teams');
         } catch (err) {
+            const alertBox = document.getElementById('createTeamAlert');
+            if (alertBox) {
+                alertBox.innerText = err.message;
+                alertBox.classList.remove('d-none');
+            }
             ClassHack.toast(err.message, 'danger');
         } finally {
             btn.disabled = false;

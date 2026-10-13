@@ -84,12 +84,11 @@
                         <select class="form-select" id="position" required>
                             <option value="" disabled selected>Select Position</option>
                             <option value="Innovation Coordinator">Innovation Coordinator</option>
+                            <option value="Class Advisor">Class Advisor</option>
                             <option value="Faculty">Faculty</option>
                             <option value="Class Coordinator">Class Coordinator</option>
-                            <option value="Department Coordinator">Department Coordinator</option>
-                            <option value="Hackathon Coordinator">Hackathon Coordinator</option>
-                            <option value="Head of Department">Head of Department (HOD)</option>
-                            <option value="Other">Other</option>
+                            <option value="Placement Coordinator">Placement Coordinator</option>
+                            <option value="HOD">HOD</option>
                         </select>
                     </div>
 
@@ -98,7 +97,7 @@
                         <div class="input-group flex-nowrap">
                             <span class="input-group-text bg-white"><i class="bi bi-lock"></i></span>
                             <input type="password" class="form-control" id="password" minlength="6" placeholder="At least 6 characters" required>
-                            <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('password', this)" title="Toggle password visibility">
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('password', this)" aria-label="Show password" title="Show password">
                                 <i class="bi bi-eye"></i>
                             </button>
                         </div>
@@ -155,7 +154,7 @@
                         <div class="input-group flex-nowrap">
                             <span class="input-group-text bg-white"><i class="bi bi-key"></i></span>
                             <input type="password" class="form-control" id="authorizerPassword" placeholder="Enter admin password" required>
-                            <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('authorizerPassword', this)" title="Toggle password visibility">
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('authorizerPassword', this)" aria-label="Show password" title="Show password">
                                 <i class="bi bi-eye"></i>
                             </button>
                         </div>
@@ -178,17 +177,7 @@
 <script src="/js/app.js"></script>
 <script>
     function togglePasswordVisibility(inputId, btn) {
-        const input = document.getElementById(inputId);
-        const icon = btn.querySelector('i');
-        if (input.type === 'password') {
-            input.type = 'text';
-            icon.classList.remove('bi-eye');
-            icon.classList.add('bi-eye-slash');
-        } else {
-            input.type = 'password';
-            icon.classList.remove('bi-eye-slash');
-            icon.classList.add('bi-eye');
-        }
+        ClassHack.togglePasswordVisibility(inputId, btn);
     }
 
     let authorizerModalInstance = null;

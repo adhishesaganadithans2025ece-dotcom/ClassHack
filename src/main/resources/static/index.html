@@ -57,7 +57,7 @@
                     <div class="input-group flex-nowrap">
                         <span class="input-group-text bg-white text-muted"><i class="bi bi-key"></i></span>
                         <input type="password" class="form-control" id="passwordInput" placeholder="Enter your password" required>
-                        <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('passwordInput', this)">
+                        <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('passwordInput', this)" aria-label="Show password" title="Show password">
                             <i class="bi bi-eye"></i>
                         </button>
                     </div>
@@ -112,15 +112,7 @@
     }
 
     function togglePasswordVisibility(inputId, btn) {
-        const input = document.getElementById(inputId);
-        const icon = btn.querySelector('i');
-        if (input.type === 'password') {
-            input.type = 'text';
-            icon.classList.replace('bi-eye', 'bi-eye-slash');
-        } else {
-            input.type = 'password';
-            icon.classList.replace('bi-eye-slash', 'bi-eye');
-        }
+        ClassHack.togglePasswordVisibility(inputId, btn);
     }
 
     async function handleLogin(e) {

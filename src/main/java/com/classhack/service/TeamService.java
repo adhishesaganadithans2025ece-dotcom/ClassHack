@@ -23,6 +23,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class TeamService {
 
+    public static final String STUDENT_ALREADY_IN_TEAM_MESSAGE = "This student already included in another team";
+
     private final TeamRepository teamRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final HackathonRepository hackathonRepository;
@@ -46,11 +48,6 @@ public class TeamService {
 
         if (!leader.isActive()) {
             throw new BadRequestException("Your student account is deactivated. Please contact your administrator.");
-        }
-
-        // Rule 2: Student leader cannot belong to two teams in the same hackathon
-        if (teamMemberRepository.isStudentInHackathonTeam(leader.getId(), hackathon.getId())) {
-            throw new BadRequestException("You are already registered in a team for this hackathon.");
         }
 
         // Rule 4: Team name must be unique within the same hackathon
@@ -80,6 +77,21 @@ public class TeamService {
         int totalRequestedSize = 1 + uniqueMemberIds.size();
         if (totalRequestedSize > hackathon.getMaximumTeamSize()) {
             throw new BadRequestException("Team size of " + totalRequestedSize + " exceeds the maximum allowed team size of " + hackathon.getMaximumTeamSize() + " for this hackathon.");
+        }
+
+        // Acquire deterministic locks on all participant student IDs to safely prevent concurrent race conditions
+        List<Long> allParticipantIds = new ArrayList<>();
+        allParticipantIds.add(leader.getId());
+        allParticipantIds.addAll(uniqueMemberIds);
+        Collections.sort(allParticipantIds);
+        for (Long pId : allParticipantIds) {
+            studentRepository.findByIdWithLock(pId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Student not found with ID: " + pId));
+        }
+
+        // Rule 2 & Scenario A/B/C: Check whether student leader is already in a team (leader or member) for this hackathon
+        if (teamMemberRepository.isStudentInHackathonTeam(leader.getId(), hackathon.getId())) {
+            throw new BadRequestException(STUDENT_ALREADY_IN_TEAM_MESSAGE);
         }
 
         // Create the team
@@ -112,9 +124,9 @@ public class TeamService {
                 throw new BadRequestException("Student " + memberStudent.getFullName() + " (" + memberStudent.getStudentId() + ") is inactive and cannot be added.");
             }
 
-            // Rule 2: A student cannot belong to two teams in the same hackathon
+            // Rule 2 & Scenario A/B: A student cannot belong to two teams in the same hackathon
             if (teamMemberRepository.isStudentInHackathonTeam(memberStudent.getId(), hackathon.getId())) {
-                throw new BadRequestException("Student " + memberStudent.getFullName() + " (" + memberStudent.getStudentId() + ") already belongs to another team in this hackathon.");
+                throw new BadRequestException(STUDENT_ALREADY_IN_TEAM_MESSAGE);
             }
 
             TeamMember member = TeamMember.builder()
@@ -208,7 +220,8 @@ public class TeamService {
             throw new BadRequestException("Team has already reached the maximum size of " + team.getHackathon().getMaximumTeamSize());
         }
 
-        Student student = studentRepository.findById(studentId)
+        // Lock the student row to prevent concurrent duplicate team additions
+        Student student = studentRepository.findByIdWithLock(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found with ID: " + studentId));
 
         if (!student.isActive()) {
@@ -216,7 +229,7 @@ public class TeamService {
         }
 
         if (teamMemberRepository.isStudentInHackathonTeam(student.getId(), team.getHackathon().getId())) {
-            throw new BadRequestException("Student " + student.getFullName() + " is already in a team for this hackathon.");
+            throw new BadRequestException(STUDENT_ALREADY_IN_TEAM_MESSAGE);
         }
 
         TeamMember member = TeamMember.builder()

@@ -48,8 +48,10 @@ public class StudentController {
     }
 
     @GetMapping("/search-members")
-    public ResponseEntity<List<StudentSearchResponse>> searchMembers(@RequestParam(required = false, defaultValue = "") String query) {
-        return ResponseEntity.ok(studentService.searchActiveStudentsForTeam(query));
+    public ResponseEntity<List<StudentSearchResponse>> searchMembers(
+            @RequestParam(required = false, defaultValue = "") String query,
+            @RequestParam(required = false) Long hackathonId) {
+        return ResponseEntity.ok(studentService.searchActiveStudentsForTeam(query, hackathonId));
     }
 
     @GetMapping("/notifications")

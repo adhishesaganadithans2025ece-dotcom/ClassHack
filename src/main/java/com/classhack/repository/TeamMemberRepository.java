@@ -18,7 +18,7 @@ public interface TeamMemberRepository extends JpaRepository<TeamMember, Long> {
 
     Optional<TeamMember> findByTeamIdAndStudentId(Long teamId, Long studentId);
 
-    @Query("SELECT COUNT(m) > 0 FROM TeamMember m WHERE m.student.id = :studentId AND m.team.hackathon.id = :hackathonId AND m.team.deleted = false")
+    @Query("SELECT COUNT(t) > 0 FROM Team t WHERE t.hackathon.id = :hackathonId AND t.deleted = false AND (t.teamLeader.id = :studentId OR EXISTS (SELECT m FROM TeamMember m WHERE m.team = t AND m.student.id = :studentId))")
     boolean isStudentInHackathonTeam(@Param("studentId") Long studentId, @Param("hackathonId") Long hackathonId);
 
     @Query("SELECT COUNT(DISTINCT m.student.id) FROM TeamMember m WHERE m.team.deleted = false")

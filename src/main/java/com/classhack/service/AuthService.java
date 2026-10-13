@@ -31,10 +31,20 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class AuthService {
+
+    public static final Set<String> ALLOWED_ADMIN_ROLES = Set.of(
+            "Innovation Coordinator",
+            "Class Advisor",
+            "Faculty",
+            "Class Coordinator",
+            "Placement Coordinator",
+            "HOD"
+    );
 
     private final AdminRepository adminRepository;
     private final StudentRepository studentRepository;
@@ -77,6 +87,11 @@ public class AuthService {
             throw new DuplicateResourceException("This email is already registered in the system.");
         }
 
+        String position = req.getPosition() != null ? req.getPosition().trim() : "";
+        if (!ALLOWED_ADMIN_ROLES.contains(position)) {
+            throw new BadRequestException("Invalid role selected. Allowed roles are: " + String.join(", ", ALLOWED_ADMIN_ROLES));
+        }
+
         Admin admin = Admin.builder()
                 .fullName(req.getFullName().trim())
                 .phone(req.getPhone() != null ? req.getPhone().trim() : null)
@@ -84,7 +99,7 @@ public class AuthService {
                 .password(passwordEncoder.encode(req.getPassword()))
                 .department(req.getDepartment().trim().toUpperCase())
                 .section(req.getSection().trim().toUpperCase())
-                .position(req.getPosition().trim())
+                .position(position)
                 .role(Role.ROLE_ADMIN)
                 .active(true)
                 .build();

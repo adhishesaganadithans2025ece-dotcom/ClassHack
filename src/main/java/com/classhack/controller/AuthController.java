@@ -59,7 +59,8 @@ public class AuthController {
                 "isSuperAdmin", isSuperAdmin,
                 "studentId", user.getStudentId() != null ? user.getStudentId() : "",
                 "department", user.getDepartment() != null ? user.getDepartment() : "",
-                "section", user.getSection() != null ? user.getSection() : ""
+                "section", user.getSection() != null ? user.getSection() : "",
+                "position", user.getPosition() != null ? user.getPosition() : ""
         ));
     }
 

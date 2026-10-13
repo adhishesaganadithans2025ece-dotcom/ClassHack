@@ -171,7 +171,7 @@ class TeamBusinessRulesTest {
         BadRequestException ex1 = assertThrows(BadRequestException.class, () ->
                 teamService.createTeam(openHackathon.getId(), req2, student1.getId())
         );
-        assertTrue(ex1.getMessage().contains("already registered in a team"));
+        assertEquals(TeamService.STUDENT_ALREADY_IN_TEAM_MESSAGE, ex1.getMessage());
 
         // student3 tries to create a team adding student2 who is already in Team Alpha
         TeamCreateRequest req3 = TeamCreateRequest.builder()
@@ -182,7 +182,122 @@ class TeamBusinessRulesTest {
         BadRequestException ex2 = assertThrows(BadRequestException.class, () ->
                 teamService.createTeam(openHackathon.getId(), req3, student3.getId())
         );
-        assertTrue(ex2.getMessage().contains("already belongs to another team"));
+        assertEquals(TeamService.STUDENT_ALREADY_IN_TEAM_MESSAGE, ex2.getMessage());
+    }
+
+    @Test
+    @DisplayName("Scenario A: Student already belongs to another team as member - rejected with exact warning")
+    void testScenarioA_StudentMemberCannotBeAddedToAnotherTeamInSameHackathon() {
+        // student1 creates Team Alpha with student2 as member
+        TeamCreateRequest req1 = TeamCreateRequest.builder()
+                .teamName("Team Alpha")
+                .memberStudentIds(List.of(student2.getId()))
+                .build();
+        teamService.createTeam(openHackathon.getId(), req1, student1.getId());
+
+        // student3 attempts to add student2 (who is already in Team Alpha) to Team Beta
+        TeamCreateRequest req2 = TeamCreateRequest.builder()
+                .teamName("Team Beta")
+                .memberStudentIds(List.of(student2.getId()))
+                .build();
+
+        BadRequestException ex = assertThrows(BadRequestException.class, () ->
+                teamService.createTeam(openHackathon.getId(), req2, student3.getId())
+        );
+        assertEquals("This student already included in another team", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("Scenario B: Student is already a team leader - cannot be added as member to another team")
+    void testScenarioB_StudentLeaderCannotBeAddedToAnotherTeamInSameHackathon() {
+        // student1 creates Team Alpha as leader
+        TeamCreateRequest req1 = TeamCreateRequest.builder()
+                .teamName("Team Alpha")
+                .memberStudentIds(List.of())
+                .build();
+        teamService.createTeam(openHackathon.getId(), req1, student1.getId());
+
+        // student3 attempts to add student1 (leader of Team Alpha) to Team Beta
+        TeamCreateRequest req2 = TeamCreateRequest.builder()
+                .teamName("Team Beta")
+                .memberStudentIds(List.of(student1.getId()))
+                .build();
+
+        BadRequestException ex = assertThrows(BadRequestException.class, () ->
+                teamService.createTeam(openHackathon.getId(), req2, student3.getId())
+        );
+        assertEquals("This student already included in another team", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("Scenario C: Student attempts to create another team when already in a team - rejected with exact warning")
+    void testScenarioC_StudentAttemptsToCreateAnotherTeamInSameHackathon() {
+        // student1 creates Team Alpha with student2 as member
+        TeamCreateRequest req1 = TeamCreateRequest.builder()
+                .teamName("Team Alpha")
+                .memberStudentIds(List.of(student2.getId()))
+                .build();
+        teamService.createTeam(openHackathon.getId(), req1, student1.getId());
+
+        // student2 (who is a member of Team Alpha) tries to create Team Beta as leader
+        TeamCreateRequest req2 = TeamCreateRequest.builder()
+                .teamName("Team Beta")
+                .memberStudentIds(List.of(student3.getId()))
+                .build();
+
+        BadRequestException ex = assertThrows(BadRequestException.class, () ->
+                teamService.createTeam(openHackathon.getId(), req2, student2.getId())
+        );
+        assertEquals("This student already included in another team", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("Scenario D: Student not part of any team can join valid team")
+    void testScenarioD_StudentNotInAnyTeamCanJoinValidTeam() {
+        // student3 is not part of any team, should succeed joining Team Alpha created by student1
+        TeamCreateRequest req = TeamCreateRequest.builder()
+                .teamName("Team Alpha")
+                .memberStudentIds(List.of(student3.getId()))
+                .build();
+
+        TeamResponse res = teamService.createTeam(openHackathon.getId(), req, student1.getId());
+        assertNotNull(res);
+        assertEquals(2, res.getMemberCount());
+    }
+
+    @Test
+    @DisplayName("Scenario E: Student participating in Hackathon A can participate in Hackathon B")
+    void testScenarioE_DifferentHackathonAllowed() {
+        // Create second open hackathon
+        Hackathon hackathonB = hackathonRepository.save(Hackathon.builder()
+                .name("AI Global Challenge 2026")
+                .description("AI event")
+                .organizedBy("Global Tech")
+                .registrationStart(LocalDate.now().minusDays(3))
+                .registrationEnd(LocalDate.now().plusDays(10))
+                .maximumTeamSize(4)
+                .prizeMoney(50000.0)
+                .mode(HackathonMode.ONLINE)
+                .registrationLink("https://aichallenge.org")
+                .build());
+
+        // student1 creates team in openHackathon (Hackathon A) with student2
+        TeamCreateRequest reqA = TeamCreateRequest.builder()
+                .teamName("Team Alpha")
+                .memberStudentIds(List.of(student2.getId()))
+                .build();
+        TeamResponse resA = teamService.createTeam(openHackathon.getId(), reqA, student1.getId());
+        assertNotNull(resA);
+
+        // student1 also creates team in hackathonB (Hackathon B) with student2 - MUST BE ALLOWED!
+        TeamCreateRequest reqB = TeamCreateRequest.builder()
+                .teamName("Team Alpha B")
+                .memberStudentIds(List.of(student2.getId()))
+                .build();
+        TeamResponse resB = teamService.createTeam(hackathonB.getId(), reqB, student1.getId());
+        assertNotNull(resB);
+        assertEquals(2, resB.getMemberCount());
+        assertEquals("Team Alpha B", resB.getTeamName());
     }
 
     @Test

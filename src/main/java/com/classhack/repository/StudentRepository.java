@@ -20,6 +20,10 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
     boolean existsByStudentIdIgnoreCase(String studentId);
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT s FROM Student s WHERE s.id = :id")
+    Optional<Student> findByIdWithLock(@Param("id") Long id);
+
     List<Student> findByActiveTrueOrderByFullNameAsc();
 
     List<Student> findAllByOrderByCreatedAtDesc();
