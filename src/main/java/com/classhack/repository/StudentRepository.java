@@ -16,9 +16,13 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
     Optional<Student> findByStudentIdIgnoreCase(String studentId);
 
+    Optional<Student> findByRollNumberIgnoreCase(String rollNumber);
+
     boolean existsByEmailIgnoreCase(String email);
 
     boolean existsByStudentIdIgnoreCase(String studentId);
+
+    boolean existsByRollNumberIgnoreCase(String rollNumber);
 
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT s FROM Student s WHERE s.id = :id")
@@ -31,6 +35,7 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     @Query("SELECT s FROM Student s WHERE " +
             "(:keyword IS NULL OR :keyword = '' OR " +
             "LOWER(s.studentId) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+            "LOWER(s.rollNumber) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
             "LOWER(s.fullName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
             "LOWER(s.email) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
             "LOWER(s.department) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
@@ -41,6 +46,7 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
     @Query("SELECT s FROM Student s WHERE s.active = true AND (" +
             "LOWER(s.studentId) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+            "LOWER(s.rollNumber) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
             "LOWER(s.fullName) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
             "LOWER(s.department) LIKE LOWER(CONCAT('%', :query, '%'))) " +
             "ORDER BY s.fullName ASC")
@@ -52,6 +58,7 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
             "LOWER(s.department) = LOWER(:department) AND LOWER(s.section) = LOWER(:section) AND (" +
             ":keyword IS NULL OR :keyword = '' OR " +
             "LOWER(s.studentId) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+            "LOWER(s.rollNumber) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
             "LOWER(s.fullName) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
             "LOWER(s.email) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
             "LOWER(s.year) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +

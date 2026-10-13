@@ -1,17 +1,20 @@
 package com.classhack.service;
 
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.MailException;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+import java.net.URI;
 import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 @Service
@@ -22,15 +25,16 @@ public class EmailService {
             "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
     );
 
-    private final ObjectProvider<JavaMailSender> mailSenderProvider;
+    private final ObjectMapper objectMapper;
+    private HttpClient httpClient;
 
-    @Value("${spring.mail.username:}")
-    private String mailUsername;
+    @Value("${app.mail.resend-api-url:https://api.resend.com/emails}")
+    private String resendApiUrl;
 
-    @Value("${spring.mail.host:}")
-    private String mailHost;
+    @Value("${app.mail.resend-api-key:}")
+    private String resendApiKey;
 
-    @Value("${mail.from:ClassHack <no-reply@classhack.com>}")
+    @Value("${app.mail.from:${mail.from:ClassHack <onboarding@resend.dev>}}")
     private String mailFrom;
 
     @Value("${app.base-url:http://localhost:8080}")
@@ -38,8 +42,32 @@ public class EmailService {
 
     public record EmailResult(boolean success, String message) {}
 
-    public EmailService(ObjectProvider<JavaMailSender> mailSenderProvider) {
-        this.mailSenderProvider = mailSenderProvider;
+    public EmailService() {
+        this(new ObjectMapper());
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public EmailService(@org.springframework.beans.factory.annotation.Autowired(required = false) ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper != null ? objectMapper : new ObjectMapper();
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
+    }
+
+    public void setHttpClient(HttpClient httpClient) {
+        this.httpClient = httpClient;
+    }
+
+    public void setResendApiKey(String resendApiKey) {
+        this.resendApiKey = resendApiKey;
+    }
+
+    public void setResendApiUrl(String resendApiUrl) {
+        this.resendApiUrl = resendApiUrl;
+    }
+
+    public void setMailFrom(String mailFrom) {
+        this.mailFrom = mailFrom;
     }
 
     public String getAppBaseUrl() {
@@ -93,7 +121,7 @@ public class EmailService {
                 "This activation link is personal to you and should not be shared with anyone. If you did not expect this account, please contact your class administrator."
         );
 
-        return sendHtmlEmail(recipientEmail, subject, plainText, htmlContent);
+        return sendViaResendApi(recipientEmail, subject, plainText, htmlContent);
     }
 
     public EmailResult sendAdminWelcomeEmail(String adminName, String designation, String recipientEmail, String rawToken) {
@@ -139,40 +167,92 @@ public class EmailService {
                 "If you need assistance, please contact the administrator who created your account."
         );
 
-        return sendHtmlEmail(recipientEmail, subject, plainText, htmlContent);
+        return sendViaResendApi(recipientEmail, subject, plainText, htmlContent);
     }
 
-    private EmailResult sendHtmlEmail(String recipient, String subject, String plainText, String htmlContent) {
-        JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
-        if (mailSender == null || isMailUnconfigured()) {
-            log.info("Email service not fully configured (MAIL_USERNAME / MAIL_HOST unset). Skipped SMTP transmission to: {}", maskEmail(recipient));
-            return new EmailResult(false, "Mail server not configured. Please configure MAIL_HOST, MAIL_USERNAME, and MAIL_PASSWORD.");
+    public EmailResult sendViaResendApi(String recipient, String subject, String plainText, String htmlContent) {
+        if (resendApiKey == null || resendApiKey.trim().isBlank() || "test_api_key".equalsIgnoreCase(resendApiKey.trim())) {
+            log.info("Resend API key not configured (RESEND_API_KEY unset). Skipped HTTPS email transmission to: {}", maskEmail(recipient));
+            return new EmailResult(false, "Resend API key not configured. Please set RESEND_API_KEY in environment variables.");
         }
 
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
+            Map<String, Object> payload = Map.of(
+                    "from", mailFrom,
+                    "to", List.of(recipient.trim()),
+                    "subject", subject,
+                    "html", htmlContent,
+                    "text", plainText
+            );
 
-            helper.setFrom(mailFrom);
-            helper.setTo(recipient);
-            helper.setSubject(subject);
-            helper.setText(plainText, htmlContent);
+            String requestBodyJson = objectMapper.writeValueAsString(payload);
 
-            mailSender.send(message);
-            log.info("Email successfully sent to {} with subject: {}", maskEmail(recipient), subject);
-            return new EmailResult(true, "Email sent successfully.");
-        } catch (MailException | MessagingException ex) {
-            log.warn("Failed to deliver email to {}: {}", maskEmail(recipient), ex.getMessage());
-            return new EmailResult(false, "Email delivery failed: " + ex.getMessage());
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(resendApiUrl))
+                    .header("Authorization", "Bearer " + resendApiKey.trim())
+                    .header("Content-Type", "application/json")
+                    .header("User-Agent", "ClassHack-App/1.0")
+                    .timeout(Duration.ofSeconds(15))
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBodyJson, StandardCharsets.UTF_8))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            int statusCode = response.statusCode();
+            String responseBody = response.body();
+
+            if (statusCode >= 200 && statusCode < 300) {
+                String emailId = extractResendId(responseBody);
+                log.info("Email accepted by Resend API (id: {}) for recipient: {}", emailId, maskEmail(recipient));
+                return new EmailResult(true, "Email accepted for delivery by Resend API.");
+            } else if (statusCode == 401 || statusCode == 403) {
+                log.warn("Resend API authentication failed (HTTP {}): Invalid or missing API key.", statusCode);
+                return new EmailResult(false, "Resend API authentication failed: Invalid or expired API key.");
+            } else if (statusCode == 422) {
+                String errorMsg = extractResendErrorMessage(responseBody);
+                log.warn("Resend sender validation error (HTTP 422): {}", errorMsg);
+                return new EmailResult(false, "Resend validation error: " + errorMsg);
+            } else if (statusCode == 429) {
+                log.warn("Resend API rate limit exceeded (HTTP 429) for recipient: {}", maskEmail(recipient));
+                return new EmailResult(false, "Resend rate limit exceeded (HTTP 429). Please retry in a few moments.");
+            } else {
+                log.warn("Resend API server error (HTTP {}) for recipient: {}", statusCode, maskEmail(recipient));
+                return new EmailResult(false, "Resend service error (HTTP " + statusCode + "). Please retry later.");
+            }
+        } catch (java.net.http.HttpTimeoutException ex) {
+            log.warn("Resend API request timed out for recipient {}: {}", maskEmail(recipient), ex.getMessage());
+            return new EmailResult(false, "Resend API request timed out.");
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            log.warn("Resend email sending interrupted for recipient {}: {}", maskEmail(recipient), ex.getMessage());
+            return new EmailResult(false, "Email dispatch interrupted.");
         } catch (Exception ex) {
-            log.warn("Unexpected error sending email to {}: {}", maskEmail(recipient), ex.getMessage());
-            return new EmailResult(false, "Email delivery error: " + ex.getMessage());
+            log.warn("Unexpected error sending email via Resend API to {}: {}", maskEmail(recipient), ex.getMessage());
+            return new EmailResult(false, "Failed to send email via Resend API: " + ex.getMessage());
         }
     }
 
-    private boolean isMailUnconfigured() {
-        return (mailUsername == null || mailUsername.trim().isEmpty()) &&
-               (mailHost == null || mailHost.trim().isEmpty() || mailHost.equalsIgnoreCase("localhost"));
+    private String extractResendId(String responseBody) {
+        try {
+            if (responseBody != null && !responseBody.isBlank()) {
+                JsonNode root = objectMapper.readTree(responseBody);
+                if (root.has("id")) {
+                    return root.get("id").asText();
+                }
+            }
+        } catch (Exception ignored) {}
+        return "unknown";
+    }
+
+    private String extractResendErrorMessage(String responseBody) {
+        try {
+            if (responseBody != null && !responseBody.isBlank()) {
+                JsonNode root = objectMapper.readTree(responseBody);
+                if (root.has("message")) {
+                    return root.get("message").asText();
+                }
+            }
+        } catch (Exception ignored) {}
+        return "Sender or domain is unverified in Resend.";
     }
 
     private boolean isValidEmail(String email) {

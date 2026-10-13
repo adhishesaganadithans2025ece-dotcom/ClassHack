@@ -180,6 +180,16 @@ public class AuthService {
 
         CustomUserDetails userDetails = (CustomUserDetails) auth.getPrincipal();
 
+        // Enforce account activation: Unactivated accounts must activate via their activation link before login
+        if (!userDetails.isActivated()) {
+            SecurityContextHolder.clearContext();
+            HttpSession session = request.getSession(false);
+            if (session != null) {
+                session.invalidate();
+            }
+            throw new BadRequestException("Your account has not been activated yet. Please click the activation link sent to your email to set your password and activate your account.");
+        }
+
         // Enforce loginType if provided by UI tab
         if (req.getLoginType() != null && !req.getLoginType().isBlank()) {
             String expectedRole = "ROLE_" + req.getLoginType().toUpperCase();

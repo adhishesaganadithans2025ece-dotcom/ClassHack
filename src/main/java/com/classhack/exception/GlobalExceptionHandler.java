@@ -51,7 +51,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<Map<String, Object>> handleBadCredentials(BadCredentialsException ex) {
-        return buildResponse(HttpStatus.UNAUTHORIZED, "Invalid email or password.");
+        return buildResponse(HttpStatus.UNAUTHORIZED, "Invalid email, username, or password.");
+    }
+
+    @ExceptionHandler(org.springframework.security.authentication.DisabledException.class)
+    public ResponseEntity<Map<String, Object>> handleDisabled(org.springframework.security.authentication.DisabledException ex) {
+        return buildResponse(HttpStatus.UNAUTHORIZED, "Account is disabled or not yet activated. Please check your email for the activation link or contact an administrator.");
     }
 
     @ExceptionHandler(AccessDeniedException.class)

@@ -340,4 +340,83 @@ class AccountActivationAndEmailTest {
         BadRequestException ex = assertThrows(BadRequestException.class, () -> accountActivationService.activateAccount(req));
         assertTrue(ex.getMessage().contains("at least 6 characters"));
     }
+
+    @Test
+    @DisplayName("Unactivated student cannot log in before activation, but can log in with roll number after activation")
+    void testUnactivatedLoginBlockedAndRollNumberLoginSupported() {
+        Student student = studentRepository.save(Student.builder()
+                .studentId("ECE777")
+                .rollNumber("710021106777")
+                .fullName("Rohan Verma")
+                .gender(Gender.MALE)
+                .department("ECE")
+                .section("A")
+                .year("III")
+                .academicYear("2026-27")
+                .email("rohan.verma@college.edu")
+                .password(passwordEncoder.encode("initialTempPass"))
+                .active(true)
+                .activated(false)
+                .build());
+
+        var req = new org.springframework.mock.web.MockHttpServletRequest();
+        var res = new org.springframework.mock.web.MockHttpServletResponse();
+
+        // 1. Attempt login with roll number before activation -> rejected because not activated
+        com.classhack.dto.LoginRequest loginReq = com.classhack.dto.LoginRequest.builder()
+                .username("710021106777")
+                .password("initialTempPass")
+                .loginType("STUDENT")
+                .build();
+
+        BadRequestException unactivatedEx = assertThrows(BadRequestException.class, () ->
+                authService.login(loginReq, req, res)
+        );
+        assertTrue(unactivatedEx.getMessage().contains("not been activated yet"),
+                "Unactivated account must be blocked from logging in with a clear message");
+
+        // 2. Activate the account via activation token
+        String rawToken = accountActivationService.createActivationToken(student.getEmail(), Role.ROLE_STUDENT);
+        accountActivationService.activateAccount(AccountActivationRequest.builder()
+                .token(rawToken)
+                .newPassword("rohanNewPass123")
+                .confirmPassword("rohanNewPass123")
+                .build());
+
+        // 3. Attempt login with roll number and new password -> succeeds!
+        com.classhack.dto.LoginRequest postActivationLogin = com.classhack.dto.LoginRequest.builder()
+                .username("710021106777")
+                .password("rohanNewPass123")
+                .loginType("STUDENT")
+                .build();
+
+        LoginResponse loginRes = authService.login(postActivationLogin, req, res);
+        assertNotNull(loginRes);
+        assertTrue(loginRes.isSuccess());
+        assertEquals("ROLE_STUDENT", loginRes.getRole());
+        assertEquals("rohan.verma@college.edu", loginRes.getEmail());
+    }
+
+    @Test
+    @DisplayName("Student search query finds student by roll number")
+    void testStudentSearchByRollNumber() {
+        studentRepository.save(Student.builder()
+                .studentId("CSE888")
+                .rollNumber("710021104888")
+                .fullName("Pooja Hegde")
+                .gender(Gender.FEMALE)
+                .department("CSE")
+                .section("B")
+                .year("II")
+                .academicYear("2026-27")
+                .email("pooja.hegde@college.edu")
+                .password(passwordEncoder.encode("secret"))
+                .active(true)
+                .activated(true)
+                .build());
+
+        List<Student> results = studentRepository.searchStudents("710021104888");
+        assertFalse(results.isEmpty(), "Student must be found when searching by roll number");
+        assertEquals("CSE888", results.get(0).getStudentId());
+    }
 }

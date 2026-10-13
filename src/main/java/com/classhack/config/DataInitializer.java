@@ -21,14 +21,29 @@ public class DataInitializer implements CommandLineRunner {
     private final AdminRepository adminRepository;
     private final AuditLogRepository auditLogRepository;
     private final PasswordEncoder passwordEncoder;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     public static final String SUPER_ADMIN_EMAIL = "admin2244@gmail.com";
     public static final String SUPER_ADMIN_RAW_PASSWORD = "admin&2244";
 
     @Override
     public void run(String... args) {
+        ensureColumnDefaults();
         initializeSuperAdmin();
         migrateLegacyAdminRoles();
+    }
+
+    private void ensureColumnDefaults() {
+        try {
+            jdbcTemplate.execute("ALTER TABLE admins ALTER COLUMN activated SET DEFAULT 0");
+        } catch (Exception e) {
+            log.debug("Notice: Could not set default on admins.activated (it may already exist or table not ready): {}", e.getMessage());
+        }
+        try {
+            jdbcTemplate.execute("ALTER TABLE students ALTER COLUMN activated SET DEFAULT 0");
+        } catch (Exception e) {
+            log.debug("Notice: Could not set default on students.activated (it may already exist or table not ready): {}", e.getMessage());
+        }
     }
 
     public void migrateLegacyAdminRoles() {

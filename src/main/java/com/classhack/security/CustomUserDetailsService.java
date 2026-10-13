@@ -41,6 +41,12 @@ public class CustomUserDetailsService implements UserDetailsService {
             return new CustomUserDetails(studentById.get());
         }
 
-        throw new UsernameNotFoundException("No user found with username / email / Student ID: " + username);
+        // Next check if a student exists by register / roll number (e.g. "710021106001")
+        Optional<Student> studentByRoll = studentRepository.findByRollNumberIgnoreCase(trimmed);
+        if (studentByRoll.isPresent()) {
+            return new CustomUserDetails(studentByRoll.get());
+        }
+
+        throw new UsernameNotFoundException("No user found with username / email / Student ID / Roll Number: " + username);
     }
 }
