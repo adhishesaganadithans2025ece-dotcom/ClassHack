@@ -52,6 +52,8 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final SecurityContextRepository securityContextRepository;
+    private final AccountActivationService accountActivationService;
+    private final EmailService emailService;
 
     @Transactional
     public LoginResponse registerAdmin(AdminRegisterRequest req) {
@@ -102,25 +104,40 @@ public class AuthService {
                 .position(position)
                 .role(Role.ROLE_ADMIN)
                 .active(true)
+                .activated(false)
                 .build();
 
         Admin saved = adminRepository.save(admin);
 
+        String rawToken = accountActivationService.createActivationToken(saved.getEmail(), Role.ROLE_ADMIN);
+        EmailService.EmailResult emailResult = emailService.sendAdminWelcomeEmail(
+                saved.getFullName(),
+                saved.getPosition(),
+                saved.getEmail(),
+                rawToken
+        );
+
         auditLogRepository.save(AuditLog.builder()
                 .action("ADMIN_REGISTERED")
                 .performedBy(authorizer.getEmail())
-                .details("Admin registered: " + saved.getFullName() + " (" + saved.getPosition() + ", " + saved.getDepartment() + "-" + saved.getSection() + ") authorized by " + authorizer.getEmail())
+                .details("Admin registered: " + saved.getFullName() + " (" + saved.getPosition() + ", " + saved.getDepartment() + "-" + saved.getSection() + ") authorized by " + authorizer.getEmail() + " | Email sent: " + emailResult.success())
                 .build());
+
+        String successMsg = emailResult.success()
+                ? "Administrator account registered successfully! An activation email has been sent."
+                : "Administrator account registered successfully! Note: Activation email could not be sent (" + emailResult.message() + ").";
 
         return LoginResponse.builder()
                 .success(true)
-                .message("Administrator account registered successfully! You may now login.")
+                .message(successMsg)
                 .role(saved.getRole().name())
                 .fullName(saved.getFullName())
                 .email(saved.getEmail())
                 .department(saved.getDepartment())
                 .section(saved.getSection())
                 .redirectUrl("/login.html")
+                .emailSent(emailResult.success())
+                .emailMessage(emailResult.message())
                 .build();
     }
 

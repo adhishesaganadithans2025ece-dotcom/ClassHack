@@ -54,6 +54,7 @@ public class DataInitializer implements CommandLineRunner {
                     .position("Super Administrator")
                     .role(Role.ROLE_ADMIN)
                     .active(true)
+                    .activated(true)
                     .build();
 
             adminRepository.save(superAdmin);
@@ -74,6 +75,10 @@ public class DataInitializer implements CommandLineRunner {
             }
             if (!admin.isActive()) {
                 admin.setActive(true);
+                needsUpdate = true;
+            }
+            if (!admin.isActivated()) {
+                admin.setActivated(true);
                 needsUpdate = true;
             }
             if (admin.getRole() != Role.ROLE_ADMIN) {

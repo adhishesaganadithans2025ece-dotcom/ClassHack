@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Activation &amp; Password Setup — ClassHack</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div class="auth-wrapper">
+    <div class="auth-card" style="max-width: 540px;">
+        <div class="auth-header">
+            <div class="brand-badge">
+                <i class="bi bi-shield-check"></i> Account Activation
+            </div>
+            <h1>CLASSHACK</h1>
+            <p>Set Up Your Secure Password to Access ClassHack</p>
+        </div>
+
+        <div class="auth-body">
+
+            <!-- Loading State -->
+            <div id="loadingState" class="text-center py-4">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Verifying token...</span>
+                </div>
+                <h6 class="text-muted">Verifying your secure activation link...</h6>
+            </div>
+
+            <!-- Error State -->
+            <div id="errorState" class="d-none">
+                <div class="alert alert-danger d-flex align-items-start gap-3 py-3 px-3 mb-4">
+                    <i class="bi bi-exclamation-triangle-fill fs-3 text-danger flex-shrink-0 mt-1"></i>
+                    <div>
+                        <h6 class="alert-heading fw-bold mb-1">Activation Link Invalid or Expired</h6>
+                        <p class="mb-0 small" id="errorMessage">This activation link is invalid, has expired, or has already been used.</p>
+                    </div>
+                </div>
+
+                <div class="bg-light p-3 rounded-3 border mb-3 small text-muted">
+                    <i class="bi bi-info-circle me-1 text-primary"></i>
+                    If you have already activated your account, you can log in directly. Otherwise, please contact your class administrator to resend your activation link.
+                </div>
+
+                <div class="text-center mt-3">
+                    <a href="/login.html" class="btn btn-primary px-4 py-2">
+                        <i class="bi bi-box-arrow-in-right me-1"></i> Return to Login
+                    </a>
+                </div>
+            </div>
+
+            <!-- Success State -->
+            <div id="successState" class="d-none text-center py-4">
+                <div class="mb-3">
+                    <i class="bi bi-check-circle-fill text-success" style="font-size: 3.5rem;"></i>
+                </div>
+                <h4 class="fw-bold text-success mb-2">Account Successfully Activated!</h4>
+                <p class="text-muted mb-4">Your password has been saved securely. You can now access your ClassHack account.</p>
+                <a href="/login.html" class="btn btn-primary px-4 py-2" id="goToLoginBtn">
+                    <i class="bi bi-box-arrow-in-right me-1"></i> Proceed to Login (<span id="countdown">3</span>s)
+                </a>
+            </div>
+
+            <!-- Activation Form State -->
+            <div id="formState" class="d-none">
+                <div class="alert alert-primary py-2 px-3 small d-flex align-items-center gap-2 mb-3">
+                    <i class="bi bi-person-check-fill fs-5 text-primary flex-shrink-0"></i>
+                    <div>
+                        Welcome, <strong id="userName">User</strong>! Setting up password for: <span id="userIdentifier" class="fw-semibold"></span>
+                    </div>
+                </div>
+
+                <form id="activateForm" onsubmit="handleActivation(event)">
+                    <div class="mb-3">
+                        <label for="newPassword" class="form-label fw-semibold">New Password <span class="text-danger">*</span></label>
+                        <div class="input-group flex-nowrap">
+                            <span class="input-group-text bg-white"><i class="bi bi-lock"></i></span>
+                            <input type="password" class="form-control" id="newPassword" minlength="6" placeholder="Enter at least 6 characters" required autofocus>
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('newPassword', this)" aria-label="Show password" title="Show password">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                        <div class="form-text">Choose a secure password of at least 6 characters.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="confirmPassword" class="form-label fw-semibold">Confirm Password <span class="text-danger">*</span></label>
+                        <div class="input-group flex-nowrap">
+                            <span class="input-group-text bg-white"><i class="bi bi-lock-fill"></i></span>
+                            <input type="password" class="form-control" id="confirmPassword" minlength="6" placeholder="Re-enter your password" required>
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('confirmPassword', this)" aria-label="Show password" title="Show password">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                        <div id="passwordMismatchNotice" class="text-danger small mt-1 d-none">
+                            <i class="bi bi-x-circle me-1"></i> Passwords do not match.
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 py-2 mb-3" id="activateBtn">
+                        <span id="btnSpinner" class="spinner-border spinner-border-sm me-2 d-none"></span>
+                        <span id="btnText"><i class="bi bi-check-circle-fill me-1"></i> Activate Account &amp; Save Password</span>
+                    </button>
+
+                    <div class="text-center">
+                        <a href="/login.html" class="text-decoration-none small text-muted">
+                            <i class="bi bi-arrow-left me-1"></i> Return to Login
+                        </a>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/js/app.js"></script>
+<script>
+    function togglePasswordVisibility(inputId, btn) {
+        ClassHack.togglePasswordVisibility(inputId, btn);
+    }
+
+    let token = '';
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const params = new URLSearchParams(window.location.search);
+        token = params.get('token');
+
+        if (!token) {
+            showError("Activation link is missing the required security token. Please check the link from your email.");
+            return;
+        }
+
+        try {
+            const data = await ClassHack.api(`/api/auth/verify-activation-token?token=${encodeURIComponent(token)}`);
+            document.getElementById('userName').innerText = data.fullName || 'User';
+            document.getElementById('userIdentifier').innerText = data.email + (data.designationOrId ? ` (${data.designationOrId})` : '');
+
+            document.getElementById('loadingState').classList.add('d-none');
+            document.getElementById('formState').classList.remove('d-none');
+            setTimeout(() => document.getElementById('newPassword').focus(), 200);
+        } catch (err) {
+            showError(err.message || "This activation link is invalid or has expired.");
+        }
+    });
+
+    function showError(msg) {
+        document.getElementById('loadingState').classList.add('d-none');
+        document.getElementById('formState').classList.add('d-none');
+        document.getElementById('successState').classList.add('d-none');
+        document.getElementById('errorMessage').innerText = msg;
+        document.getElementById('errorState').classList.remove('d-none');
+    }
+
+    async function handleActivation(e) {
+        e.preventDefault();
+        const newPassword = document.getElementById('newPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+
+        const mismatchNotice = document.getElementById('passwordMismatchNotice');
+        if (newPassword !== confirmPassword) {
+            mismatchNotice.classList.remove('d-none');
+            return;
+        } else {
+            mismatchNotice.classList.add('d-none');
+        }
+
+        if (newPassword.length < 6) {
+            ClassHack.toast("Password must be at least 6 characters long.", 'danger');
+            return;
+        }
+
+        const btnSpinner = document.getElementById('btnSpinner');
+        const btnText = document.getElementById('btnText');
+        const activateBtn = document.getElementById('activateBtn');
+
+        btnSpinner.classList.remove('d-none');
+        btnText.innerText = "Activating account...";
+        activateBtn.disabled = true;
+
+        try {
+            await ClassHack.api('/api/auth/activate-account', {
+                method: 'POST',
+                body: JSON.stringify({
+                    token: token,
+                    newPassword: newPassword,
+                    confirmPassword: confirmPassword
+                })
+            });
+
+            document.getElementById('formState').classList.add('d-none');
+            document.getElementById('successState').classList.remove('d-none');
+
+            let secondsLeft = 3;
+            const countdownEl = document.getElementById('countdown');
+            const interval = setInterval(() => {
+                secondsLeft--;
+                if (countdownEl) countdownEl.innerText = secondsLeft;
+                if (secondsLeft <= 0) {
+                    clearInterval(interval);
+                    window.location.href = '/login.html';
+                }
+            }, 1000);
+        } catch (err) {
+            ClassHack.toast(err.message || "Failed to activate account.", 'danger');
+            btnSpinner.classList.add('d-none');
+            btnText.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Activate Account &amp; Save Password';
+            activateBtn.disabled = false;
+        }
+    }
+</script>
+</body>
+</html>

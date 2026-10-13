@@ -57,6 +57,24 @@ public class AdminController {
         return ResponseEntity.ok(Map.of("success", true, "message", "Student password reset successfully."));
     }
 
+    @PostMapping("/students/{id}/resend-activation")
+    public ResponseEntity<Map<String, Object>> resendStudentActivation(@PathVariable Long id) {
+        var result = adminService.resendStudentActivation(id);
+        return ResponseEntity.ok(Map.of(
+                "success", result.success(),
+                "message", result.message()
+        ));
+    }
+
+    @PostMapping("/admins/resend-activation")
+    public ResponseEntity<Map<String, Object>> resendAdminActivation(@RequestParam String email) {
+        var result = adminService.resendAdminActivation(email);
+        return ResponseEntity.ok(Map.of(
+                "success", result.success(),
+                "message", result.message()
+        ));
+    }
+
     @GetMapping("/students/{id}/history")
     public ResponseEntity<StudentParticipationHistoryResponse> getStudentParticipationHistory(@PathVariable Long id) {
         return ResponseEntity.ok(adminService.getStudentParticipationHistory(id));

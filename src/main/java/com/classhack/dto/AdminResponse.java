@@ -21,6 +21,7 @@ public class AdminResponse {
     private String position;
     private String role;
     private boolean active;
+    private boolean activated;
     private boolean isSuperAdmin;
     private LocalDateTime createdAt;
 }

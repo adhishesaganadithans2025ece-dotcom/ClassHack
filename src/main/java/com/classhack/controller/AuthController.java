@@ -1,10 +1,8 @@
 package com.classhack.controller;
 
-import com.classhack.dto.AdminRegisterRequest;
-import com.classhack.dto.ChangePasswordRequest;
-import com.classhack.dto.LoginRequest;
-import com.classhack.dto.LoginResponse;
+import com.classhack.dto.*;
 import com.classhack.security.CustomUserDetails;
+import com.classhack.service.AccountActivationService;
 import com.classhack.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -21,6 +19,22 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final AccountActivationService accountActivationService;
+
+    @GetMapping("/verify-activation-token")
+    public ResponseEntity<TokenVerificationResponse> verifyActivationToken(@RequestParam String token) {
+        return ResponseEntity.ok(accountActivationService.verifyActivationToken(token));
+    }
+
+    @PostMapping("/activate-account")
+    public ResponseEntity<Map<String, Object>> activateAccount(@Valid @RequestBody AccountActivationRequest req) {
+        accountActivationService.activateAccount(req);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Account successfully activated! You can now log in.",
+                "redirectUrl", "/login.html"
+        ));
+    }
 
     @PostMapping("/register-admin")
     public ResponseEntity<LoginResponse> registerAdmin(@Valid @RequestBody AdminRegisterRequest req) {

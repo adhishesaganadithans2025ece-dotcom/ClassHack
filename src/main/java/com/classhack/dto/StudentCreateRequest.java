@@ -20,6 +20,9 @@ public class StudentCreateRequest {
     @Size(max = 50, message = "Student ID cannot exceed 50 characters")
     private String studentId;
 
+    @Size(max = 50, message = "Roll number cannot exceed 50 characters")
+    private String rollNumber;
+
     @NotBlank(message = "Full name is required")
     @Size(max = 100, message = "Full name cannot exceed 100 characters")
     private String fullName;

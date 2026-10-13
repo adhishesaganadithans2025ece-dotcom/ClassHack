@@ -23,7 +23,11 @@ public class StudentResponse {
     private String academicYear;
     private String phone;
     private String email;
+    private String rollNumber;
     private boolean active;
+    private boolean activated;
+    private boolean emailSent;
+    private String emailMessage;
     private LocalDateTime createdAt;
     private long totalHackathons;
     private long totalWins;

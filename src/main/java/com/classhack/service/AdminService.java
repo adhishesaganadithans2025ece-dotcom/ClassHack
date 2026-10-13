@@ -37,6 +37,8 @@ public class AdminService {
     private final AuditLogRepository auditLogRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthService authService;
+    private final AccountActivationService accountActivationService;
+    private final EmailService emailService;
 
     private boolean isSuperAdmin(CustomUserDetails admin) {
         if (admin == null) return false;
@@ -86,8 +88,13 @@ public class AdminService {
             throw new DuplicateResourceException("Email '" + email + "' is already registered in the system.");
         }
 
+        String rollNumber = (req.getRollNumber() != null && !req.getRollNumber().isBlank())
+                ? req.getRollNumber().trim()
+                : studentId;
+
         Student student = Student.builder()
                 .studentId(studentId)
+                .rollNumber(rollNumber)
                 .fullName(req.getFullName().trim())
                 .gender(req.getGender())
                 .department(req.getDepartment().trim().toUpperCase())
@@ -99,18 +106,30 @@ public class AdminService {
                 .password(passwordEncoder.encode(req.getPassword()))
                 .role(Role.ROLE_STUDENT)
                 .active(true)
+                .activated(false)
                 .build();
 
         Student saved = studentRepository.save(student);
+
+        String rawToken = accountActivationService.createActivationToken(saved.getEmail(), Role.ROLE_STUDENT);
+        EmailService.EmailResult emailResult = emailService.sendStudentWelcomeEmail(
+                saved.getFullName(),
+                saved.getRollNumber(),
+                saved.getEmail(),
+                rawToken
+        );
 
         String adminName = admin.getEmail();
         auditLogRepository.save(AuditLog.builder()
                 .action("STUDENT_CREATED")
                 .performedBy(adminName)
-                .details("Created student: " + saved.getFullName() + " (" + saved.getStudentId() + ", " + saved.getDepartment() + "-" + saved.getSection() + ")")
+                .details("Created student: " + saved.getFullName() + " (" + saved.getStudentId() + ", " + saved.getDepartment() + "-" + saved.getSection() + ") | Email sent: " + emailResult.success())
                 .build());
 
-        return mapToStudentResponse(saved);
+        StudentResponse response = mapToStudentResponse(saved);
+        response.setEmailSent(emailResult.success());
+        response.setEmailMessage(emailResult.message());
+        return response;
     }
 
     @Transactional
@@ -385,7 +404,9 @@ public class AdminService {
                 .academicYear(student.getAcademicYear())
                 .phone(student.getPhone())
                 .email(student.getEmail())
+                .rollNumber(student.getRollNumber())
                 .active(student.isActive())
+                .activated(student.isActivated())
                 .createdAt(student.getCreatedAt())
                 .totalHackathons(count)
                 .totalWins(wins)
@@ -440,8 +461,19 @@ public class AdminService {
                 .position(admin.getPosition())
                 .role(admin.getRole().name())
                 .active(admin.isActive())
+                .activated(admin.isActivated())
                 .isSuperAdmin(isSuperAdmin)
                 .createdAt(admin.getCreatedAt())
                 .build();
+    }
+
+    @Transactional
+    public EmailService.EmailResult resendStudentActivation(Long id) {
+        return accountActivationService.resendStudentActivation(id, authService.getCurrentUser());
+    }
+
+    @Transactional
+    public EmailService.EmailResult resendAdminActivation(String email) {
+        return accountActivationService.resendAdminActivation(email, authService.getCurrentUser());
     }
 }

@@ -56,6 +56,9 @@ public class Student {
     @Column(nullable = false)
     private String password;
 
+    @Column(length = 50)
+    private String rollNumber;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     @Builder.Default
@@ -65,10 +68,21 @@ public class Student {
     @Builder.Default
     private boolean active = true;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean activated = false;
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    public String getRollNumber() {
+        if (rollNumber != null && !rollNumber.isBlank()) {
+            return rollNumber;
+        }
+        return studentId;
+    }
 }

@@ -53,6 +53,10 @@ public class Admin {
     @Builder.Default
     private boolean active = true;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean activated = false;
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;

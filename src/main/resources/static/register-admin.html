@@ -255,10 +255,14 @@
                 authorizerModalInstance.hide();
             }
 
-            ClassHack.toast(res.message || "Administrator account registered successfully! Redirecting to login...", 'success');
+            if (res.emailSent) {
+                ClassHack.toast("Administrator account registered! Activation email sent to " + email + ".", 'success');
+            } else {
+                ClassHack.toast("Administrator account registered! Note: " + (res.emailMessage || "Activation email delivery failed.") + " You may log in or activate later.", 'warning');
+            }
             setTimeout(() => {
                 window.location.href = '/login.html';
-            }, 1000);
+            }, 1800);
         } catch (err) {
             // Person is not admin or credentials invalid: restrict them
             authAlertBox.innerText = err.message || "Authorization failed: Only an administrator can register another admin.";

@@ -1132,11 +1132,19 @@
                         <small class="text-muted">${ClassHack.escapeHtml(s.phone || 'N/A')}</small>
                     </td>
                     <td>
-                        <span class="badge ${s.active ? 'bg-success-subtle text-success border border-success' : 'bg-danger-subtle text-danger border border-danger'}">
-                            ${s.active ? 'Active' : 'Inactive'}
-                        </span>
+                        <div class="d-flex flex-column gap-1">
+                            <span class="badge ${s.active ? 'bg-success-subtle text-success border border-success' : 'bg-danger-subtle text-danger border border-danger'}">
+                                ${s.active ? 'Active' : 'Inactive'}
+                            </span>
+                            <span class="badge ${s.activated ? 'bg-primary-subtle text-primary border border-primary' : 'bg-warning-subtle text-warning border border-warning'}" style="font-size: 0.72rem;">
+                                ${s.activated ? '<i class="bi bi-patch-check-fill me-1"></i>Activated' : '<i class="bi bi-clock-history me-1"></i>Pending Link'}
+                            </span>
+                        </div>
                     </td>
                     <td class="text-end">
+                        <button class="btn btn-sm btn-outline-warning me-1" title="Resend Activation Email" onclick="resendStudentActivation(${s.id})">
+                            <i class="bi bi-envelope-at"></i>
+                        </button>
                         <button class="btn btn-sm btn-outline-info me-1" title="View Portfolio & History" onclick="viewStudentPortfolio(${s.id})">
                             <i class="bi bi-journal-bookmark"></i>
                         </button>
@@ -1193,6 +1201,7 @@
         e.preventDefault();
         const payload = {
             studentId: document.getElementById('newStudentId').value.trim(),
+            rollNumber: document.getElementById('newStudentId').value.trim(),
             fullName: document.getElementById('newStudentFullName').value.trim(),
             gender: document.getElementById('newStudentGender').value,
             department: document.getElementById('newStudentDept').value.trim(),
@@ -1208,11 +1217,17 @@
         btn.disabled = true;
 
         try {
-            await ClassHack.api('/api/admin/students', {
+            const res = await ClassHack.api('/api/admin/students', {
                 method: 'POST',
                 body: JSON.stringify(payload)
             });
-            ClassHack.toast("Student account created successfully!", 'success');
+
+            if (res && res.emailSent) {
+                ClassHack.toast("Student created successfully and activation email sent to " + res.email + "!", 'success');
+            } else {
+                ClassHack.toast("Student created, but activation email delivery failed: " + (res.emailMessage || 'SMTP not configured') + ". You can resend it from the student table.", 'warning');
+            }
+
             bootstrap.Modal.getInstance(document.getElementById('addStudentModal')).hide();
             await loadStudents();
             await loadDashboardStats();
@@ -1220,6 +1235,24 @@
             ClassHack.toast(err.message, 'danger');
         } finally {
             btn.disabled = false;
+        }
+    }
+
+    async function resendStudentActivation(studentId) {
+        if (!confirm("Resend account activation email to this student?")) {
+            return;
+        }
+        try {
+            const res = await ClassHack.api(`/api/admin/students/${studentId}/resend-activation`, {
+                method: 'POST'
+            });
+            if (res && res.success) {
+                ClassHack.toast(res.message || "Activation email sent successfully!", 'success');
+            } else {
+                ClassHack.toast(res.message || "Email delivery failed. Please check mail settings.", 'warning');
+            }
+        } catch (err) {
+            ClassHack.toast(err.message || "Failed to resend activation email.", 'danger');
         }
     }
 

@@ -19,4 +19,6 @@ public class LoginResponse {
     private String department;
     private String section;
     private String redirectUrl;
+    private boolean emailSent;
+    private String emailMessage;
 }
