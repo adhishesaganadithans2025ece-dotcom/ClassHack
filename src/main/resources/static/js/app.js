@@ -153,6 +153,27 @@ const ClassHack = {
         return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     },
 
+    formatDateTime(dateString, formattedFallback) {
+        if (formattedFallback) return formattedFallback;
+        if (!dateString) return 'N/A';
+        let str = String(dateString);
+        if (!str.endsWith('Z') && !str.includes('+')) {
+            str += 'Z';
+        }
+        const d = new Date(str);
+        if (isNaN(d.getTime())) return String(dateString);
+        return d.toLocaleString('en-US', {
+            timeZone: 'Asia/Kolkata',
+            month: '2-digit',
+            day: '2-digit',
+            year: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        });
+    },
+
     formatCurrency(amount) {
         if (amount == null) return '₹0';
         return '₹' + Number(amount).toLocaleString('en-IN');

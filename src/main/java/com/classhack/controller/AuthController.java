@@ -16,11 +16,15 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
-@RequiredArgsConstructor
 public class AuthController {
 
     private final AuthService authService;
     private final AccountActivationService accountActivationService;
+
+    public AuthController(AuthService authService, AccountActivationService accountActivationService) {
+        this.authService = authService;
+        this.accountActivationService = accountActivationService;
+    }
 
     @GetMapping("/verify-activation-token")
     public ResponseEntity<TokenVerificationResponse> verifyActivationToken(@RequestParam String token) {

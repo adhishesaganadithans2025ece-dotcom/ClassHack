@@ -17,4 +17,6 @@ public class AuditLogResponse {
     private String performedBy;
     private String details;
     private LocalDateTime timestamp;
+    private String formattedTimestamp;
+    private String isoTimestamp;
 }

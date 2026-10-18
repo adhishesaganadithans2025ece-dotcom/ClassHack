@@ -22,14 +22,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class AdminService {
 
     private final StudentRepository studentRepository;
@@ -41,6 +46,27 @@ public class AdminService {
     private final PasswordEncoder passwordEncoder;
     private final AuthService authService;
     private final StudentCredentialExportService studentCredentialExportService;
+
+    public AdminService(
+            StudentRepository studentRepository,
+            AdminRepository adminRepository,
+            HackathonRepository hackathonRepository,
+            TeamRepository teamRepository,
+            TeamMemberRepository teamMemberRepository,
+            AuditLogRepository auditLogRepository,
+            PasswordEncoder passwordEncoder,
+            AuthService authService,
+            StudentCredentialExportService studentCredentialExportService) {
+        this.studentRepository = studentRepository;
+        this.adminRepository = adminRepository;
+        this.hackathonRepository = hackathonRepository;
+        this.teamRepository = teamRepository;
+        this.teamMemberRepository = teamMemberRepository;
+        this.auditLogRepository = auditLogRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.authService = authService;
+        this.studentCredentialExportService = studentCredentialExportService;
+    }
 
     private boolean isSuperAdmin(CustomUserDetails admin) {
         if (admin == null) return false;
@@ -375,14 +401,30 @@ public class AdminService {
     }
 
     public List<AuditLogResponse> getAuditLogs() {
+        ZoneId istZone = ZoneId.of("Asia/Kolkata");
+        DateTimeFormatter istFormatter = DateTimeFormatter.ofPattern("MM/dd/yyyy, h:mm:ss a", Locale.US);
+
         return auditLogRepository.findTop100ByOrderByTimestampDesc().stream()
-                .map(a -> AuditLogResponse.builder()
-                        .id(a.getId())
-                        .action(a.getAction())
-                        .performedBy(a.getPerformedBy())
-                        .details(a.getDetails())
-                        .timestamp(a.getTimestamp())
-                        .build())
+                .map(a -> {
+                    LocalDateTime raw = a.getTimestamp();
+                    String formatted = null;
+                    String iso = null;
+                    if (raw != null) {
+                        // The database stores server timestamp in UTC. Convert to Asia/Kolkata (South Indian Time)
+                        ZonedDateTime ist = raw.atZone(ZoneOffset.UTC).withZoneSameInstant(istZone);
+                        formatted = ist.format(istFormatter);
+                        iso = raw.toString() + "Z";
+                    }
+                    return AuditLogResponse.builder()
+                            .id(a.getId())
+                            .action(a.getAction())
+                            .performedBy(a.getPerformedBy())
+                            .details(a.getDetails())
+                            .timestamp(raw)
+                            .formattedTimestamp(formatted)
+                            .isoTimestamp(iso)
+                            .build();
+                })
                 .collect(Collectors.toList());
     }
 

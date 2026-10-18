@@ -1852,7 +1852,7 @@
 
             tbody.innerHTML = logs.map(l => `
                 <tr>
-                    <td class="small text-muted font-monospace">${new Date(l.timestamp).toLocaleString()}</td>
+                    <td class="small text-muted font-monospace">${ClassHack.formatDateTime(l.timestamp, l.formattedTimestamp)}</td>
                     <td><span class="badge bg-light text-dark border">${ClassHack.escapeHtml(l.action)}</span></td>
                     <td><strong>${ClassHack.escapeHtml(l.performedBy)}</strong></td>
                     <td>${ClassHack.escapeHtml(l.details)}</td>

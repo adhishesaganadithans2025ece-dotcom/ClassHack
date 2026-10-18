@@ -12,11 +12,14 @@ import com.classhack.dto.TeamResponse;
 import com.classhack.entity.Admin;
 import com.classhack.entity.Hackathon;
 import com.classhack.entity.Student;
+import com.classhack.dto.AuditLogResponse;
+import com.classhack.entity.AuditLog;
 import com.classhack.entity.enums.Gender;
 import com.classhack.entity.enums.HackathonMode;
 import com.classhack.entity.enums.Role;
 import com.classhack.exception.BadRequestException;
 import com.classhack.repository.AdminRepository;
+import com.classhack.repository.AuditLogRepository;
 import com.classhack.repository.HackathonRepository;
 import com.classhack.repository.StudentRepository;
 import com.classhack.security.CustomUserDetails;
@@ -48,6 +51,10 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -83,6 +90,9 @@ class ClassHackNewFeaturesTest {
 
     @Autowired
     private HackathonRepository hackathonRepository;
+
+    @Autowired
+    private AuditLogRepository auditLogRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -475,5 +485,34 @@ class ClassHackNewFeaturesTest {
             assertNotNull(emptyNoticeRow);
             assertTrue(emptyNoticeRow.getCell(0).getStringCellValue().contains("No student registrations found"));
         }
+    }
+
+    @Test
+    @DisplayName("Audit Log: Stored UTC timestamp is converted to South Indian Time (Asia/Kolkata / IST, UTC+5:30)")
+    void testAuditLogSouthIndianTimestampConversion() {
+        // 1. Save an audit log
+        AuditLog log = auditLogRepository.save(AuditLog.builder()
+                .action("STUDENT_CREATED")
+                .performedBy(superAdmin.getEmail())
+                .details("Created student test audit")
+                .build());
+
+        // 2. Fetch via adminService
+        List<AuditLogResponse> logs = adminService.getAuditLogs();
+        assertFalse(logs.isEmpty(), "Audit logs must not be empty");
+        AuditLogResponse latest = logs.stream()
+                .filter(l -> l.getId().equals(log.getId()))
+                .findFirst()
+                .orElseThrow();
+
+        assertNotNull(latest.getFormattedTimestamp(), "formattedTimestamp must be populated");
+        assertNotNull(latest.getIsoTimestamp(), "isoTimestamp must be populated with Z");
+        assertTrue(latest.getIsoTimestamp().endsWith("Z"), "isoTimestamp must end with Z to declare UTC");
+
+        // 3. Verify exact conversion for the user's specific UTC timestamp (09:26:00 UTC -> 2:56:00 PM IST)
+        LocalDateTime utcSample = LocalDateTime.of(2026, 10, 18, 9, 26, 0);
+        ZonedDateTime istZoned = utcSample.atZone(ZoneOffset.UTC).withZoneSameInstant(ZoneId.of("Asia/Kolkata"));
+        String formatted = istZoned.format(DateTimeFormatter.ofPattern("MM/dd/yyyy, h:mm:ss a", java.util.Locale.US));
+        assertEquals("10/18/2026, 2:56:00 PM", formatted);
     }
 }

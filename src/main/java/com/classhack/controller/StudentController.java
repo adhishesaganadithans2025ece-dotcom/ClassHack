@@ -21,13 +21,23 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/student")
 @PreAuthorize("hasRole('STUDENT')")
-@RequiredArgsConstructor
 public class StudentController {
 
     private final StudentService studentService;
     private final AdminService adminService;
     private final TeamService teamService;
     private final AuthService authService;
+
+    public StudentController(
+            StudentService studentService,
+            AdminService adminService,
+            TeamService teamService,
+            AuthService authService) {
+        this.studentService = studentService;
+        this.adminService = adminService;
+        this.teamService = teamService;
+        this.authService = authService;
+    }
 
     @GetMapping("/profile")
     public ResponseEntity<StudentResponse> getProfile() {

@@ -14,10 +14,13 @@ import java.io.IOException;
 @RestController
 @RequestMapping("/api/admin/reports")
 @PreAuthorize("hasRole('ADMIN')")
-@RequiredArgsConstructor
 public class ReportController {
 
     private final ReportService reportService;
+
+    public ReportController(ReportService reportService) {
+        this.reportService = reportService;
+    }
 
     @GetMapping("/hackathons/{hackathonId}/export-excel")
     public void exportHackathonExcel(@PathVariable Long hackathonId, HttpServletResponse response) throws IOException {

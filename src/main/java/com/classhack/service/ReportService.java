@@ -19,6 +19,8 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -174,7 +176,12 @@ public class ReportService {
                         .map(m -> m.getStudent().getFullName() + " (" + m.getRole() + ")")
                         .collect(Collectors.joining(", "));
 
-                String regDate = team.getCreatedAt() != null ? team.getCreatedAt().format(dtf) : "N/A";
+                String regDate = "N/A";
+                if (team.getCreatedAt() != null) {
+                    regDate = team.getCreatedAt().atZone(ZoneOffset.UTC)
+                            .withZoneSameInstant(ZoneId.of("Asia/Kolkata"))
+                            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+                }
 
                 for (TeamMember m : members) {
                     totalParticipants++;

@@ -14,10 +14,13 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/admin")
 @PreAuthorize("hasRole('ADMIN')")
-@RequiredArgsConstructor
 public class AdminController {
 
     private final AdminService adminService;
+
+    public AdminController(AdminService adminService) {
+        this.adminService = adminService;
+    }
 
     @PostMapping("/students")
     public ResponseEntity<StudentResponse> createStudent(@Valid @RequestBody StudentCreateRequest req) {
