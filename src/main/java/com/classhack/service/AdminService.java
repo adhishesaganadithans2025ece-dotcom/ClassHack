@@ -21,8 +21,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -37,8 +40,7 @@ public class AdminService {
     private final AuditLogRepository auditLogRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthService authService;
-    private final AccountActivationService accountActivationService;
-    private final EmailService emailService;
+    private final StudentCredentialExportService studentCredentialExportService;
 
     private boolean isSuperAdmin(CustomUserDetails admin) {
         if (admin == null) return false;
@@ -92,6 +94,10 @@ public class AdminService {
                 ? req.getRollNumber().trim()
                 : studentId;
 
+        String rawPassword = (req.getPassword() != null && !req.getPassword().isBlank())
+                ? req.getPassword().trim()
+                : generateSecurePassword();
+
         Student student = Student.builder()
                 .studentId(studentId)
                 .rollNumber(rollNumber)
@@ -103,33 +109,36 @@ public class AdminService {
                 .academicYear(req.getAcademicYear().trim())
                 .phone(req.getPhone() != null ? req.getPhone().trim() : null)
                 .email(email)
-                .password(passwordEncoder.encode(req.getPassword()))
+                .password(passwordEncoder.encode(rawPassword))
                 .role(Role.ROLE_STUDENT)
                 .active(true)
-                .activated(false)
+                .activated(true)
+                .passwordChangeRequired(true)
                 .build();
 
         Student saved = studentRepository.save(student);
 
-        String rawToken = accountActivationService.createActivationToken(saved.getEmail(), Role.ROLE_STUDENT);
-        EmailService.EmailResult emailResult = emailService.sendStudentWelcomeEmail(
-                saved.getFullName(),
-                saved.getRollNumber(),
-                saved.getEmail(),
-                rawToken
-        );
+        // Retain initial credentials in memory temporarily for secure authorized Excel export
+        String batchId = UUID.randomUUID().toString();
+        studentCredentialExportService.recordInitialCredential(saved.getStudentId(), rawPassword, batchId, admin.getId());
 
         String adminName = admin.getEmail();
         auditLogRepository.save(AuditLog.builder()
                 .action("STUDENT_CREATED")
                 .performedBy(adminName)
-                .details("Created student: " + saved.getFullName() + " (" + saved.getStudentId() + ", " + saved.getDepartment() + "-" + saved.getSection() + ") | Email sent: " + emailResult.success())
+                .details("Created student: " + saved.getFullName() + " (" + saved.getStudentId() + ", " + saved.getDepartment() + "-" + saved.getSection() + ")")
                 .build());
 
         StudentResponse response = mapToStudentResponse(saved);
-        response.setEmailSent(emailResult.success());
-        response.setEmailMessage(emailResult.message());
+        response.setBatchId(batchId);
+        response.setPasswordChangeRequired(true);
+        response.setEmailSent(false);
+        response.setEmailMessage("Email sending disabled. Initial credentials ready for Excel export.");
         return response;
+    }
+
+    private String generateSecurePassword() {
+        return "Class@" + (1000 + new java.security.SecureRandom().nextInt(9000));
     }
 
     @Transactional
@@ -407,6 +416,7 @@ public class AdminService {
                 .rollNumber(student.getRollNumber())
                 .active(student.isActive())
                 .activated(student.isActivated())
+                .passwordChangeRequired(student.isPasswordChangeRequired())
                 .createdAt(student.getCreatedAt())
                 .totalHackathons(count)
                 .totalWins(wins)
@@ -467,13 +477,57 @@ public class AdminService {
                 .build();
     }
 
-    @Transactional
-    public EmailService.EmailResult resendStudentActivation(Long id) {
-        return accountActivationService.resendStudentActivation(id, authService.getCurrentUser());
-    }
+    public byte[] exportStudentCredentialsExcel(String batchId, String department, String section, String year) throws IOException {
+        CustomUserDetails admin = authService.getCurrentUser();
+        if (admin == null) {
+            throw new BadRequestException("User not authenticated.");
+        }
 
-    @Transactional
-    public EmailService.EmailResult resendAdminActivation(String email) {
-        return accountActivationService.resendAdminActivation(email, authService.getCurrentUser());
+        List<Student> students;
+        String subtitle;
+
+        if (batchId != null && !batchId.isBlank()) {
+            List<String> studentIds = studentCredentialExportService.getStudentIdsForBatch(batchId.trim());
+            if (studentIds.isEmpty()) {
+                students = Collections.emptyList();
+            } else {
+                List<Student> batchStudents = studentRepository.findByStudentIdIn(studentIds);
+                if (!isSuperAdmin(admin)) {
+                    students = batchStudents.stream()
+                            .filter(s -> s.getDepartment().equalsIgnoreCase(admin.getDepartment())
+                                    && s.getSection().equalsIgnoreCase(admin.getSection()))
+                            .collect(Collectors.toList());
+                } else {
+                    students = batchStudents;
+                }
+            }
+            subtitle = "Creation Batch: " + batchId.trim();
+        } else {
+            String deptFilter = (department != null && !department.isBlank()) ? department.trim() : null;
+            String secFilter = (section != null && !section.isBlank()) ? section.trim() : null;
+            String yearFilter = (year != null && !year.isBlank()) ? year.trim() : null;
+
+            // Restrict regular admin to their assigned department and section
+            if (!isSuperAdmin(admin)) {
+                deptFilter = admin.getDepartment();
+                secFilter = admin.getSection();
+            }
+
+            if (deptFilter != null && secFilter != null) {
+                if (yearFilter != null) {
+                    students = studentRepository.findByDepartmentIgnoreCaseAndSectionIgnoreCaseAndYearIgnoreCaseOrderByCreatedAtDesc(
+                            deptFilter, secFilter, yearFilter);
+                } else {
+                    students = studentRepository.findByDepartmentIgnoreCaseAndSectionIgnoreCaseOrderByCreatedAtDesc(
+                            deptFilter, secFilter);
+                }
+                subtitle = "Department: " + deptFilter + " | Section: " + secFilter + (yearFilter != null ? " | Year: " + yearFilter : "");
+            } else {
+                students = studentRepository.findAllByOrderByCreatedAtDesc();
+                subtitle = "All Departments & Sections";
+            }
+        }
+
+        return studentCredentialExportService.generateStudentCredentialsExcel(students, subtitle);
     }
 }

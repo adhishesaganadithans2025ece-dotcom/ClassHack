@@ -45,7 +45,6 @@ public class AccountActivationService {
     private final AdminRepository adminRepository;
     private final AuditLogRepository auditLogRepository;
     private final PasswordEncoder passwordEncoder;
-    private final EmailService emailService;
 
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -178,8 +177,10 @@ public class AccountActivationService {
         log.info("Account successfully activated for user: {}", maskEmail(token.getEmail()));
     }
 
+    public record ActivationResult(boolean success, String message) {}
+
     @Transactional
-    public EmailService.EmailResult resendStudentActivation(Long studentId, CustomUserDetails admin) {
+    public ActivationResult resendStudentActivation(Long studentId, CustomUserDetails admin) {
         if (admin == null) {
             throw new BadRequestException("User not authenticated.");
         }
@@ -202,24 +203,18 @@ public class AccountActivationService {
         checkRateLimit(student.getEmail());
 
         String rawToken = createActivationToken(student.getEmail(), Role.ROLE_STUDENT);
-        EmailService.EmailResult result = emailService.sendStudentWelcomeEmail(
-                student.getFullName(),
-                student.getRollNumber(),
-                student.getEmail(),
-                rawToken
-        );
 
         auditLogRepository.save(AuditLog.builder()
-                .action("STUDENT_ACTIVATION_RESENT")
+                .action("STUDENT_ACTIVATION_TOKEN_GENERATED")
                 .performedBy(admin.getEmail())
-                .details("Resent activation email to student: " + student.getEmail() + " (Success: " + result.success() + ")")
+                .details("Generated activation token for student: " + student.getEmail())
                 .build());
 
-        return result;
+        return new ActivationResult(true, "Activation token generated successfully.");
     }
 
     @Transactional
-    public EmailService.EmailResult resendAdminActivation(String email, CustomUserDetails currentAdmin) {
+    public ActivationResult resendAdminActivation(String email, CustomUserDetails currentAdmin) {
         if (currentAdmin == null) {
             throw new BadRequestException("User not authenticated.");
         }
@@ -230,20 +225,14 @@ public class AccountActivationService {
         checkRateLimit(targetAdmin.getEmail());
 
         String rawToken = createActivationToken(targetAdmin.getEmail(), Role.ROLE_ADMIN);
-        EmailService.EmailResult result = emailService.sendAdminWelcomeEmail(
-                targetAdmin.getFullName(),
-                targetAdmin.getPosition(),
-                targetAdmin.getEmail(),
-                rawToken
-        );
 
         auditLogRepository.save(AuditLog.builder()
-                .action("ADMIN_ACTIVATION_RESENT")
+                .action("ADMIN_ACTIVATION_TOKEN_GENERATED")
                 .performedBy(currentAdmin.getEmail())
-                .details("Resent activation email to admin: " + targetAdmin.getEmail() + " (Success: " + result.success() + ")")
+                .details("Generated activation token for admin: " + targetAdmin.getEmail())
                 .build());
 
-        return result;
+        return new ActivationResult(true, "Activation token generated successfully.");
     }
 
     private void checkRateLimit(String email) {

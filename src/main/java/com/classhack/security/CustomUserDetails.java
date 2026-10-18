@@ -26,6 +26,7 @@ public class CustomUserDetails implements UserDetails {
     private final String position;
     private final boolean active;
     private final boolean activated;
+    private final boolean passwordChangeRequired;
     private final String rollNumber;
     private final Collection<? extends GrantedAuthority> authorities;
 
@@ -42,6 +43,7 @@ public class CustomUserDetails implements UserDetails {
         this.position = admin.getPosition();
         this.active = admin.isActive();
         this.activated = admin.isActivated();
+        this.passwordChangeRequired = false;
         this.rollNumber = null;
         this.authorities = List.of(new SimpleGrantedAuthority(admin.getRole().name()));
     }
@@ -59,6 +61,7 @@ public class CustomUserDetails implements UserDetails {
         this.position = null;
         this.active = student.isActive();
         this.activated = student.isActivated();
+        this.passwordChangeRequired = student.isPasswordChangeRequired();
         this.rollNumber = student.getRollNumber();
         this.authorities = List.of(new SimpleGrantedAuthority(student.getRole().name()));
     }

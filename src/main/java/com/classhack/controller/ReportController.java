@@ -19,6 +19,20 @@ public class ReportController {
 
     private final ReportService reportService;
 
+    @GetMapping("/hackathons/{hackathonId}/export-excel")
+    public void exportHackathonExcel(@PathVariable Long hackathonId, HttpServletResponse response) throws IOException {
+        byte[] excelBytes = reportService.exportHackathonRegistrationsExcel(hackathonId);
+        String hackathonName = reportService.getHackathonName(hackathonId);
+        String safeName = hackathonName.replaceAll("[^a-zA-Z0-9_-]", "_");
+        String filename = "ClassHack_Registrations_" + safeName + ".xlsx";
+
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
+        response.setContentLength(excelBytes.length);
+        response.getOutputStream().write(excelBytes);
+        response.getOutputStream().flush();
+    }
+
     @GetMapping("/hackathons/{hackathonId}/export-csv")
     public void exportHackathonCsv(@PathVariable Long hackathonId, HttpServletResponse response) throws IOException {
         response.setContentType("text/csv; charset=UTF-8");

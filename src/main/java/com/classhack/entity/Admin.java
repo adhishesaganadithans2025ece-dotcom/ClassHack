@@ -54,9 +54,9 @@ public class Admin {
     private boolean active = true;
 
     @Column(nullable = false)
-    @org.hibernate.annotations.ColumnDefault("false")
+    @org.hibernate.annotations.ColumnDefault("true")
     @Builder.Default
-    private boolean activated = false;
+    private boolean activated = true;
 
     @CreationTimestamp
     @Column(updatable = false)

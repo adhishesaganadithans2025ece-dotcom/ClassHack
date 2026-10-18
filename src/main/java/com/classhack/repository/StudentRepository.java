@@ -54,6 +54,10 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
     List<Student> findByDepartmentIgnoreCaseAndSectionIgnoreCaseOrderByCreatedAtDesc(String department, String section);
 
+    List<Student> findByStudentIdIn(java.util.Collection<String> studentIds);
+
+    List<Student> findByDepartmentIgnoreCaseAndSectionIgnoreCaseAndYearIgnoreCaseOrderByCreatedAtDesc(String department, String section, String year);
+
     @Query("SELECT s FROM Student s WHERE " +
             "LOWER(s.department) = LOWER(:department) AND LOWER(s.section) = LOWER(:section) AND (" +
             ":keyword IS NULL OR :keyword = '' OR " +

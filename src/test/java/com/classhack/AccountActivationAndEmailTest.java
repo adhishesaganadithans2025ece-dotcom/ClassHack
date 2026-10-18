@@ -21,7 +21,6 @@ import com.classhack.security.CustomUserDetails;
 import com.classhack.service.AccountActivationService;
 import com.classhack.service.AdminService;
 import com.classhack.service.AuthService;
-import com.classhack.service.EmailService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -85,7 +84,7 @@ class AccountActivationAndEmailTest {
     }
 
     @Test
-    @DisplayName("Admin creates student: saves student, stores token hash, and sets activated=false")
+    @DisplayName("Admin creates student: saves student, securely hashes password, sets active and activated, and requires password change")
     void testStudentCreationGeneratesActivationToken() {
         StudentCreateRequest req = StudentCreateRequest.builder()
                 .studentId("ECE101")
@@ -106,21 +105,18 @@ class AccountActivationAndEmailTest {
         assertNotNull(res);
         assertEquals("ECE101", res.getStudentId());
         assertEquals("710021106001", res.getRollNumber());
-        assertFalse(res.isActivated(), "Newly registered student must have activated=false initially");
+        assertTrue(res.isActivated(), "Newly created student is activated immediately without requiring email activation");
+        assertTrue(res.isPasswordChangeRequired(), "Newly created student requires password change on first login");
+        assertNotNull(res.getBatchId(), "Batch ID is provided for credential export");
 
         Student saved = studentRepository.findByEmailIgnoreCase("aarav.ece@college.edu").orElseThrow();
         assertEquals("710021106001", saved.getRollNumber());
-        assertFalse(saved.isActivated());
+        assertTrue(saved.isActivated());
+        assertTrue(saved.isPasswordChangeRequired());
 
-        // Verify token in database
-        List<ActivationToken> tokens = activationTokenRepository.findByEmailIgnoreCaseAndUsedFalse("aarav.ece@college.edu");
-        assertEquals(1, tokens.size(), "Exactly one active activation token must be generated for the student");
-        ActivationToken token = tokens.get(0);
-        assertEquals(Role.ROLE_STUDENT, token.getRole());
-        assertFalse(token.isUsed());
-        assertTrue(token.getExpiryTime().isAfter(LocalDateTime.now()));
-        assertNotNull(token.getTokenHash());
-        assertEquals(64, token.getTokenHash().length(), "Token hash must be 64-char SHA-256 hex");
+        // Verify password is ONLY stored as secure BCrypt hash in DB, never plaintext
+        assertNotEquals("tempInitialPass", saved.getPassword(), "Plaintext password must never be stored in database");
+        assertTrue(passwordEncoder.matches("tempInitialPass", saved.getPassword()), "Stored hash must match configured password encoder");
     }
 
     @Test
@@ -223,15 +219,9 @@ class AccountActivationAndEmailTest {
 
         Admin savedAdmin = adminRepository.findByEmailIgnoreCase("meenakshi@college.edu").orElseThrow();
         assertEquals("Class Advisor", savedAdmin.getPosition());
-        assertFalse(savedAdmin.isActivated());
+        assertTrue(savedAdmin.isActivated(), "Registered admin is activated immediately upon creation");
 
-        // Find token and activate
-        List<ActivationToken> tokens = activationTokenRepository.findByEmailIgnoreCaseAndUsedFalse("meenakshi@college.edu");
-        assertEquals(1, tokens.size());
-        ActivationToken token = tokens.get(0);
-        assertEquals(Role.ROLE_ADMIN, token.getRole());
-
-        // Generate token for testing activation
+        // Test activation token generation and password reset/setup flow
         String rawToken = accountActivationService.createActivationToken("meenakshi@college.edu", Role.ROLE_ADMIN);
 
         TokenVerificationResponse verify = accountActivationService.verifyActivationToken(rawToken);
@@ -342,8 +332,8 @@ class AccountActivationAndEmailTest {
     }
 
     @Test
-    @DisplayName("Unactivated student cannot log in before activation, but can log in with roll number after activation")
-    void testUnactivatedLoginBlockedAndRollNumberLoginSupported() {
+    @DisplayName("Active student can log in directly with roll number without email activation; deactivated student is rejected")
+    void testActiveStudentDirectLoginAndDeactivatedBlocked() {
         Student student = studentRepository.save(Student.builder()
                 .studentId("ECE777")
                 .rollNumber("710021106777")
@@ -356,45 +346,33 @@ class AccountActivationAndEmailTest {
                 .email("rohan.verma@college.edu")
                 .password(passwordEncoder.encode("initialTempPass"))
                 .active(true)
-                .activated(false)
+                .activated(true)
+                .passwordChangeRequired(true)
                 .build());
 
         var req = new org.springframework.mock.web.MockHttpServletRequest();
         var res = new org.springframework.mock.web.MockHttpServletResponse();
 
-        // 1. Attempt login with roll number before activation -> rejected because not activated
+        // 1. Direct login succeeds with roll number and temporary password
         com.classhack.dto.LoginRequest loginReq = com.classhack.dto.LoginRequest.builder()
                 .username("710021106777")
                 .password("initialTempPass")
                 .loginType("STUDENT")
                 .build();
 
-        BadRequestException unactivatedEx = assertThrows(BadRequestException.class, () ->
-                authService.login(loginReq, req, res)
-        );
-        assertTrue(unactivatedEx.getMessage().contains("not been activated yet"),
-                "Unactivated account must be blocked from logging in with a clear message");
-
-        // 2. Activate the account via activation token
-        String rawToken = accountActivationService.createActivationToken(student.getEmail(), Role.ROLE_STUDENT);
-        accountActivationService.activateAccount(AccountActivationRequest.builder()
-                .token(rawToken)
-                .newPassword("rohanNewPass123")
-                .confirmPassword("rohanNewPass123")
-                .build());
-
-        // 3. Attempt login with roll number and new password -> succeeds!
-        com.classhack.dto.LoginRequest postActivationLogin = com.classhack.dto.LoginRequest.builder()
-                .username("710021106777")
-                .password("rohanNewPass123")
-                .loginType("STUDENT")
-                .build();
-
-        LoginResponse loginRes = authService.login(postActivationLogin, req, res);
+        LoginResponse loginRes = authService.login(loginReq, req, res);
         assertNotNull(loginRes);
         assertTrue(loginRes.isSuccess());
         assertEquals("ROLE_STUDENT", loginRes.getRole());
         assertEquals("rohan.verma@college.edu", loginRes.getEmail());
+        assertTrue(loginRes.isPasswordChangeRequired(), "Student requires password change on first login");
+
+        // 2. Deactivated student account (active=false) cannot log in
+        student.setActive(false);
+        studentRepository.save(student);
+
+        assertThrows(Exception.class, () -> authService.login(loginReq, req, res),
+                "Deactivated account must be rejected from login");
     }
 
     @Test

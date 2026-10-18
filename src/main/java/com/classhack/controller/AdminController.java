@@ -57,21 +57,40 @@ public class AdminController {
         return ResponseEntity.ok(Map.of("success", true, "message", "Student password reset successfully."));
     }
 
+    @GetMapping("/students/export-credentials")
+    public void exportStudentCredentials(
+            @RequestParam(required = false) String batchId,
+            @RequestParam(required = false) String department,
+            @RequestParam(required = false) String section,
+            @RequestParam(required = false) String year,
+            jakarta.servlet.http.HttpServletResponse response
+    ) throws java.io.IOException {
+        byte[] excelBytes = adminService.exportStudentCredentialsExcel(batchId, department, section, year);
+        String timestamp = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+        String filename = (batchId != null && !batchId.isBlank())
+                ? "ClassHack_Student_Credentials_Batch_" + timestamp + ".xlsx"
+                : "ClassHack_Student_Credentials_" + timestamp + ".xlsx";
+
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
+        response.setContentLength(excelBytes.length);
+        response.getOutputStream().write(excelBytes);
+        response.getOutputStream().flush();
+    }
+
     @PostMapping("/students/{id}/resend-activation")
     public ResponseEntity<Map<String, Object>> resendStudentActivation(@PathVariable Long id) {
-        var result = adminService.resendStudentActivation(id);
         return ResponseEntity.ok(Map.of(
-                "success", result.success(),
-                "message", result.message()
+                "success", false,
+                "message", "Email sending is disabled. Use 'Export Student Credentials (Excel)' to obtain initial credentials."
         ));
     }
 
     @PostMapping("/admins/resend-activation")
     public ResponseEntity<Map<String, Object>> resendAdminActivation(@RequestParam String email) {
-        var result = adminService.resendAdminActivation(email);
         return ResponseEntity.ok(Map.of(
-                "success", result.success(),
-                "message", result.message()
+                "success", false,
+                "message", "Email sending is disabled. Administrator accounts are activated upon creation."
         ));
     }
 

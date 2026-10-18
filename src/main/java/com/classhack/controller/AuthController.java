@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestController
@@ -64,18 +65,19 @@ public class AuthController {
 
         boolean isSuperAdmin = com.classhack.config.DataInitializer.SUPER_ADMIN_EMAIL.equalsIgnoreCase(user.getEmail());
 
-        return ResponseEntity.ok(Map.of(
-                "authenticated", true,
-                "id", user.getId(),
-                "fullName", user.getFullName(),
-                "email", user.getEmail(),
-                "role", user.getRole().name(),
-                "isSuperAdmin", isSuperAdmin,
-                "studentId", user.getStudentId() != null ? user.getStudentId() : "",
-                "department", user.getDepartment() != null ? user.getDepartment() : "",
-                "section", user.getSection() != null ? user.getSection() : "",
-                "position", user.getPosition() != null ? user.getPosition() : ""
-        ));
+        Map<String, Object> resp = new LinkedHashMap<>();
+        resp.put("authenticated", true);
+        resp.put("id", user.getId());
+        resp.put("fullName", user.getFullName());
+        resp.put("email", user.getEmail());
+        resp.put("role", user.getRole().name());
+        resp.put("isSuperAdmin", isSuperAdmin);
+        resp.put("studentId", user.getStudentId() != null ? user.getStudentId() : "");
+        resp.put("department", user.getDepartment() != null ? user.getDepartment() : "");
+        resp.put("section", user.getSection() != null ? user.getSection() : "");
+        resp.put("position", user.getPosition() != null ? user.getPosition() : "");
+        resp.put("passwordChangeRequired", user.isPasswordChangeRequired());
+        return ResponseEntity.ok(resp);
     }
 
     @PostMapping("/change-password")

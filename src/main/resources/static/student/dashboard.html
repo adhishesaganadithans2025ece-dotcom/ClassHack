@@ -251,13 +251,24 @@
                                     <label for="studentNewPassword" class="form-label fw-semibold">New Password</label>
                                     <div class="input-group flex-nowrap">
                                         <span class="input-group-text bg-white"><i class="bi bi-lock"></i></span>
-                                        <input type="password" class="form-control" id="studentNewPassword" minlength="6" placeholder="At least 6 characters" required>
+                                        <input type="password" class="form-control" id="studentNewPassword" minlength="8" placeholder="At least 8 characters" required>
                                         <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('studentNewPassword', this)" aria-label="Show password" title="Show password">
                                             <i class="bi bi-eye"></i>
                                         </button>
                                     </div>
+                                    <div class="form-text">Must be at least 8 characters.</div>
                                 </div>
-                                <button type="submit" class="btn btn-primary">Update Password</button>
+                                <div class="mb-3">
+                                    <label for="studentConfirmPassword" class="form-label fw-semibold">Confirm New Password</label>
+                                    <div class="input-group flex-nowrap">
+                                        <span class="input-group-text bg-white"><i class="bi bi-lock-fill"></i></span>
+                                        <input type="password" class="form-control" id="studentConfirmPassword" minlength="8" placeholder="Re-enter new password" required>
+                                        <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('studentConfirmPassword', this)" aria-label="Show password" title="Show password">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-primary" id="studentChangePasswordBtn">Update Password</button>
                             </form>
                         </div>
                     </div>
@@ -266,6 +277,56 @@
 
         </div>
     </main>
+<!-- ================= FIRST LOGIN CHANGE PASSWORD MODAL ================= -->
+<div class="modal fade" id="firstLoginChangePasswordModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-warning">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title fw-bold"><i class="bi bi-shield-lock-fill me-2"></i> Password Change Required</h5>
+            </div>
+            <form id="firstLoginForm" onsubmit="handleFirstLoginPasswordChange(event)">
+                <div class="modal-body">
+                    <div class="alert alert-info py-2 small mb-3">
+                        <i class="bi bi-info-circle-fill me-1"></i> For your security, you must change your initial temporary password before accessing the student dashboard.
+                    </div>
+                    <div class="mb-3">
+                        <label for="firstLoginCurrentPassword" class="form-label fw-semibold">Initial / Current Password</label>
+                        <div class="input-group flex-nowrap">
+                            <span class="input-group-text bg-white"><i class="bi bi-key"></i></span>
+                            <input type="password" class="form-control" id="firstLoginCurrentPassword" required>
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('firstLoginCurrentPassword', this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="firstLoginNewPassword" class="form-label fw-semibold">New Password</label>
+                        <div class="input-group flex-nowrap">
+                            <span class="input-group-text bg-white"><i class="bi bi-lock"></i></span>
+                            <input type="password" class="form-control" id="firstLoginNewPassword" minlength="8" placeholder="At least 8 characters" required>
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('firstLoginNewPassword', this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                        <div class="form-text">Must be at least 8 characters.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="firstLoginConfirmPassword" class="form-label fw-semibold">Confirm New Password</label>
+                        <div class="input-group flex-nowrap">
+                            <span class="input-group-text bg-white"><i class="bi bi-lock-fill"></i></span>
+                            <input type="password" class="form-control" id="firstLoginConfirmPassword" minlength="8" placeholder="Re-enter new password" required>
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility('firstLoginConfirmPassword', this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary w-100" id="firstLoginSubmitBtn">Set New Password &amp; Continue</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 <!-- ================= CREATE TEAM MODAL ================= -->
@@ -362,6 +423,11 @@
             document.getElementById('profilePhone').innerText = fullProfile.phone || 'N/A';
         } catch (e) {
             console.error(e);
+        }
+
+        if (currentStudent && currentStudent.passwordChangeRequired) {
+            const firstLoginModal = new bootstrap.Modal(document.getElementById('firstLoginChangePasswordModal'));
+            firstLoginModal.show();
         }
 
         await loadAvailableHackathons();
@@ -839,16 +905,72 @@
         e.preventDefault();
         const currentPassword = document.getElementById('studentCurrentPassword').value;
         const newPassword = document.getElementById('studentNewPassword').value;
+        const confirmPassword = document.getElementById('studentConfirmPassword').value;
+
+        if (newPassword !== confirmPassword) {
+            ClassHack.toast("New password and confirmation do not match.", 'danger');
+            return;
+        }
+
+        if (newPassword.length < 8) {
+            ClassHack.toast("New password must be at least 8 characters long.", 'danger');
+            return;
+        }
+
+        const btn = document.getElementById('studentChangePasswordBtn');
+        btn.disabled = true;
 
         try {
             await ClassHack.api('/api/auth/change-password', {
                 method: 'POST',
-                body: JSON.stringify({ currentPassword, newPassword })
+                body: JSON.stringify({ currentPassword, newPassword, confirmPassword })
             });
             ClassHack.toast("Password updated successfully!", 'success');
             document.getElementById('studentChangePasswordForm').reset();
         } catch (err) {
-            ClassHack.toast(err.message, 'danger');
+            ClassHack.toast(err.message || "Failed to update password.", 'danger');
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    async function handleFirstLoginPasswordChange(e) {
+        e.preventDefault();
+        const currentPassword = document.getElementById('firstLoginCurrentPassword').value;
+        const newPassword = document.getElementById('firstLoginNewPassword').value;
+        const confirmPassword = document.getElementById('firstLoginConfirmPassword').value;
+
+        if (newPassword !== confirmPassword) {
+            ClassHack.toast("New password and confirmation do not match.", 'danger');
+            return;
+        }
+
+        if (newPassword.length < 8) {
+            ClassHack.toast("New password must be at least 8 characters long.", 'danger');
+            return;
+        }
+
+        const btn = document.getElementById('firstLoginSubmitBtn');
+        btn.disabled = true;
+
+        try {
+            await ClassHack.api('/api/auth/change-password', {
+                method: 'POST',
+                body: JSON.stringify({ currentPassword, newPassword, confirmPassword })
+            });
+            ClassHack.toast("Password set successfully! You can now access your dashboard.", 'success');
+            const modalEl = document.getElementById('firstLoginChangePasswordModal');
+            const modalInstance = bootstrap.Modal.getInstance(modalEl);
+            if (modalInstance) {
+                modalInstance.hide();
+            }
+            if (currentStudent) {
+                currentStudent.passwordChangeRequired = false;
+            }
+        } catch (err) {
+            ClassHack.toast(err.message || "Failed to update password.", 'danger');
+        } finally {
+            btn.disabled = false;
         }
     }
 </script>

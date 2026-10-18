@@ -26,6 +26,8 @@ public class StudentResponse {
     private String rollNumber;
     private boolean active;
     private boolean activated;
+    private boolean passwordChangeRequired;
+    private String batchId;
     private boolean emailSent;
     private String emailMessage;
     private LocalDateTime createdAt;

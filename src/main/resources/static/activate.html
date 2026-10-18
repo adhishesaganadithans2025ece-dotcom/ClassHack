@@ -42,7 +42,7 @@
 
                 <div class="bg-light p-3 rounded-3 border mb-3 small text-muted">
                     <i class="bi bi-info-circle me-1 text-primary"></i>
-                    If you have already activated your account, you can log in directly. Otherwise, please contact your class administrator to resend your activation link.
+                    If you have an active account, you can log in directly. Otherwise, please contact your administrator.
                 </div>
 
                 <div class="text-center mt-3">
@@ -131,7 +131,7 @@
         token = params.get('token');
 
         if (!token) {
-            showError("Activation link is missing the required security token. Please check the link from your email.");
+            showError("Activation link is missing the required security token. Please check the URL provided by your administrator.");
             return;
         }
 

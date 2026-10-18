@@ -52,8 +52,6 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final SecurityContextRepository securityContextRepository;
-    private final AccountActivationService accountActivationService;
-    private final EmailService emailService;
 
     @Transactional
     public LoginResponse registerAdmin(AdminRegisterRequest req) {
@@ -104,40 +102,28 @@ public class AuthService {
                 .position(position)
                 .role(Role.ROLE_ADMIN)
                 .active(true)
-                .activated(false)
+                .activated(true)
                 .build();
 
         Admin saved = adminRepository.save(admin);
 
-        String rawToken = accountActivationService.createActivationToken(saved.getEmail(), Role.ROLE_ADMIN);
-        EmailService.EmailResult emailResult = emailService.sendAdminWelcomeEmail(
-                saved.getFullName(),
-                saved.getPosition(),
-                saved.getEmail(),
-                rawToken
-        );
-
         auditLogRepository.save(AuditLog.builder()
                 .action("ADMIN_REGISTERED")
                 .performedBy(authorizer.getEmail())
-                .details("Admin registered: " + saved.getFullName() + " (" + saved.getPosition() + ", " + saved.getDepartment() + "-" + saved.getSection() + ") authorized by " + authorizer.getEmail() + " | Email sent: " + emailResult.success())
+                .details("Admin registered: " + saved.getFullName() + " (" + saved.getPosition() + ", " + saved.getDepartment() + "-" + saved.getSection() + ") authorized by " + authorizer.getEmail())
                 .build());
-
-        String successMsg = emailResult.success()
-                ? "Administrator account registered successfully! An activation email has been sent."
-                : "Administrator account registered successfully! Note: Activation email could not be sent (" + emailResult.message() + ").";
 
         return LoginResponse.builder()
                 .success(true)
-                .message(successMsg)
+                .message("Administrator account registered successfully! You can now log in using your credentials.")
                 .role(saved.getRole().name())
                 .fullName(saved.getFullName())
                 .email(saved.getEmail())
                 .department(saved.getDepartment())
                 .section(saved.getSection())
                 .redirectUrl("/login.html")
-                .emailSent(emailResult.success())
-                .emailMessage(emailResult.message())
+                .emailSent(false)
+                .emailMessage("Email sending disabled.")
                 .build();
     }
 
@@ -180,14 +166,14 @@ public class AuthService {
 
         CustomUserDetails userDetails = (CustomUserDetails) auth.getPrincipal();
 
-        // Enforce account activation: Unactivated accounts must activate via their activation link before login
-        if (!userDetails.isActivated()) {
+        // Enforce account active status (active account rule)
+        if (!userDetails.isEnabled()) {
             SecurityContextHolder.clearContext();
             HttpSession session = request.getSession(false);
             if (session != null) {
                 session.invalidate();
             }
-            throw new BadRequestException("Your account has not been activated yet. Please click the activation link sent to your email to set your password and activate your account.");
+            throw new BadRequestException("Your account is deactivated. Please contact your administrator.");
         }
 
         // Enforce loginType if provided by UI tab
@@ -215,6 +201,7 @@ public class AuthService {
                 .department(userDetails.getDepartment())
                 .section(userDetails.getSection())
                 .redirectUrl(redirectUrl)
+                .passwordChangeRequired(userDetails.isPasswordChangeRequired())
                 .build();
     }
 
@@ -233,6 +220,19 @@ public class AuthService {
             throw new BadRequestException("User not authenticated.");
         }
 
+        if (req.getCurrentPassword() == null || req.getCurrentPassword().isBlank()) {
+            throw new BadRequestException("Current password is required.");
+        }
+        if (req.getNewPassword() == null || req.getNewPassword().length() < 8) {
+            throw new BadRequestException("New password must be at least 8 characters long.");
+        }
+        if (req.getConfirmPassword() == null || !req.getNewPassword().equals(req.getConfirmPassword())) {
+            throw new BadRequestException("New password and confirmation do not match.");
+        }
+        if (req.getNewPassword().equals(req.getCurrentPassword())) {
+            throw new BadRequestException("New password must be different from current password.");
+        }
+
         if (userDetails.getRole() == Role.ROLE_ADMIN) {
             Admin admin = adminRepository.findById(userDetails.getId())
                     .orElseThrow(() -> new ResourceNotFoundException("Admin not found"));
@@ -241,6 +241,11 @@ public class AuthService {
             }
             admin.setPassword(passwordEncoder.encode(req.getNewPassword()));
             adminRepository.save(admin);
+            auditLogRepository.save(AuditLog.builder()
+                    .action("ADMIN_PASSWORD_CHANGED")
+                    .performedBy(admin.getEmail())
+                    .details("Password updated for administrator: " + admin.getEmail())
+                    .build());
         } else {
             Student student = studentRepository.findById(userDetails.getId())
                     .orElseThrow(() -> new ResourceNotFoundException("Student not found"));
@@ -248,7 +253,13 @@ public class AuthService {
                 throw new BadRequestException("Current password does not match.");
             }
             student.setPassword(passwordEncoder.encode(req.getNewPassword()));
+            student.setPasswordChangeRequired(false);
             studentRepository.save(student);
+            auditLogRepository.save(AuditLog.builder()
+                    .action("STUDENT_PASSWORD_CHANGED")
+                    .performedBy(student.getEmail())
+                    .details("Password updated for student: " + student.getStudentId())
+                    .build());
         }
     }
 }

@@ -80,4 +80,10 @@ public class StudentController {
         studentService.markAllNotificationsAsRead(user.getId());
         return ResponseEntity.ok(Map.of("success", true));
     }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<Map<String, Object>> changePassword(@jakarta.validation.Valid @RequestBody com.classhack.dto.ChangePasswordRequest req) {
+        authService.changePassword(req);
+        return ResponseEntity.ok(Map.of("success", true, "message", "Password changed successfully."));
+    }
 }

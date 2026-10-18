@@ -69,9 +69,14 @@ public class Student {
     private boolean active = true;
 
     @Column(nullable = false)
+    @org.hibernate.annotations.ColumnDefault("true")
+    @Builder.Default
+    private boolean activated = true;
+
+    @Column(name = "password_change_required", nullable = false)
     @org.hibernate.annotations.ColumnDefault("false")
     @Builder.Default
-    private boolean activated = false;
+    private boolean passwordChangeRequired = false;
 
     @CreationTimestamp
     @Column(updatable = false)
